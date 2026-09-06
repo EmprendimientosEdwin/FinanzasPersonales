@@ -1,132 +1,149 @@
-/* ==========================================================
-   FINANZASPERSONALES
-   APP.JS
-========================================================== */
+/* =========================================================
+FINANZASPERSONALES
+APP.JS
+Login + Supabase + Roles + Dashboard + Admin
+========================================================= */
 
+/* =========================================================
 
-/* ==========================================================
-   SUPABASE
-========================================================== */
+1. CONFIGURACIÓN SUPABASE
+   ========================================================= */
 
 const SUPABASE_URL = "https://xwkxgrktsdejoaqnbiwk.supabase.co/rest/v1/";
-
 const SUPABASE_ANON_KEY = "sb_publishable_DYl24WF6mNud6QsS4nhhYA_53ohH191";
 
-const supabaseClient = window.supabase.createClient(
-    SUPABASE_URL,
-    SUPABASE_ANON_KEY
+let supabaseClient = null;
+
+if (
+window.supabase &&
+SUPABASE_URL !== "TU_SUPABASE_URL" &&
+SUPABASE_ANON_KEY !== "TU_SUPABASE_ANON_KEY"
+) {
+supabaseClient = window.supabase.createClient(
+SUPABASE_URL,
+SUPABASE_ANON_KEY
 );
 
+```
+console.log("✅ Supabase conectado correctamente");
+```
 
-/* ==========================================================
-   ESTADO
-========================================================== */
+} else {
+console.error(
+"❌ Configura SUPABASE_URL y SUPABASE_ANON_KEY en app.js"
+);
+}
+
+/* =========================================================
+2. VARIABLES GLOBALES
+========================================================= */
 
 let currentUser = null;
 let currentProfile = null;
 
-let financeChart = null;
+let flowChart = null;
 let expenseChart = null;
 
+let allUsers = [];
 
-/* ==========================================================
-   DOM
-========================================================== */
+/* =========================================================
+3. ELEMENTOS DOM
+========================================================= */
+
+const loginScreen = document.getElementById("loginScreen");
+const appContainer = document.getElementById("appContainer");
+
+const loginForm = document.getElementById("loginForm");
+const loginEmail = document.getElementById("loginEmail");
+const loginPassword = document.getElementById("loginPassword");
+
+const passwordToggle = document.getElementById("passwordToggle");
+
+const logoutBtn = document.getElementById("logoutBtn");
 
 const sidebar = document.getElementById("sidebar");
+const sidebarOverlay = document.getElementById("sidebarOverlay");
+const mobileMenuBtn = document.getElementById("mobileMenuBtn");
+const sidebarClose = document.getElementById("sidebarClose");
 
-const menuToggle =
-    document.getElementById("menuToggle");
+const navItems = document.querySelectorAll(".nav-item");
+const pageSections = document.querySelectorAll(".page-section");
 
-const logoutBtn =
-    document.getElementById("logoutBtn");
+const toastContainer = document.getElementById("toastContainer");
 
-const pageTitle =
-    document.getElementById("pageTitle");
+/* =========================================================
+4. INICIO
+========================================================= */
 
-const userName =
-    document.getElementById("userName");
+document.addEventListener("DOMContentLoaded", async () => {
 
-const userRole =
-    document.getElementById("userRole");
-
-const userAvatar =
-    document.getElementById("userAvatar");
-
-const welcomeName =
-    document.getElementById("welcomeName");
-
-const adminMenu =
-    document.getElementById("adminMenu");
-
-const userModal =
-    document.getElementById("userModal");
-
-const newUserBtn =
-    document.getElementById("newUserBtn");
-
-const closeUserModal =
-    document.getElementById("closeUserModal");
-
-const cancelUserModal =
-    document.getElementById("cancelUserModal");
-
-const createUserForm =
-    document.getElementById("createUserForm");
-
-const togglePassword =
-    document.getElementById("togglePassword");
-
-const newPassword =
-    document.getElementById("newPassword");
-
-const userFormMessage =
-    document.getElementById("userFormMessage");
-
-const toast =
-    document.getElementById("toast");
-
-const toastMessage =
-    document.getElementById("toastMessage");
-
-
-/* ==========================================================
-   INICIO
-========================================================== */
-
-document.addEventListener(
-    "DOMContentLoaded",
-    initializeApp
+```
+console.log(
+    "🚀 FinanzasPersonales - JavaScript cargado correctamente"
 );
 
+initializeUI();
 
-async function initializeApp() {
-
-    console.log(
-        "🚀 FinanzasPersonales iniciando..."
+if (!supabaseClient) {
+    showToast(
+        "error",
+        "Configuración pendiente",
+        "Debes configurar las credenciales de Supabase en app.js."
     );
 
-    setupNavigation();
-
-    setupMobileMenu();
-
-    setupUserModal();
-
-    setupPasswordToggle();
-
-    setupLogout();
-
-    setupTheme();
-
-    await checkSession();
+    return;
 }
 
+await checkSession();
+```
 
-/* ==========================================================
-   SESIÓN
-========================================================== */
+});
+
+/* =========================================================
+5. INICIALIZAR UI
+========================================================= */
+
+function initializeUI() {
+
+```
+setupLogin();
+
+setupNavigation();
+
+setupSidebar();
+
+setupPasswordToggle();
+
+setupLogout();
+
+setupThemeToggle();
+
+setupModalEvents();
+
+setupQuickActions();
+
+setupUserSearch();
+
+setupUserFilters();
+
+setupPasswordGenerator();
+```
+
+}
+
+/* =========================================================
+6. SESIÓN
+========================================================= */
 
 async function checkSession() {
+
+```
+if (!supabaseClient) {
+    showLogin();
+    return;
+}
+
+try {
 
     const {
         data,
@@ -134,635 +151,1207 @@ async function checkSession() {
     } = await supabaseClient.auth.getSession();
 
     if (error) {
-
         console.error(
             "Error obteniendo sesión:",
             error
         );
 
+        showLogin();
         return;
     }
 
     if (!data.session) {
 
         console.log(
-            "No existe una sesión activa."
+            "ℹ️ No existe una sesión activa."
         );
 
-        /*
-         * Posteriormente aquí redirigiremos
-         * al login.
-         */
-
+        showLogin();
         return;
     }
 
-    currentUser =
-        data.session.user;
+    currentUser = data.session.user;
 
-    await loadUserProfile();
-
-}
-
-
-/* ==========================================================
-   PERFIL
-========================================================== */
-
-async function loadUserProfile() {
-
-    const {
-        data,
-        error
-    } = await supabaseClient
-        .from("profiles")
-        .select("*")
-        .eq("id", currentUser.id)
-        .single();
-
-
-    if (error) {
-
-        console.error(
-            "Error cargando perfil:",
-            error
-        );
-
-        showToast(
-            "No se pudo cargar tu perfil."
-        );
-
-        return;
-    }
-
-
-    currentProfile = data;
-
-    updateInterface();
-
-    await loadDashboard();
-
-    if (
-        currentProfile.rol === "admin"
-    ) {
-
-        await loadUsers();
-
-    }
-
-}
-
-
-/* ==========================================================
-   ACTUALIZAR INTERFAZ
-========================================================== */
-
-function updateInterface() {
-
-    const nombre =
-        currentProfile.nombre ||
-        "Usuario";
-
-
-    userName.textContent =
-        `${nombre} ${currentProfile.apellido || ""}`
-            .trim();
-
-
-    welcomeName.textContent =
-        nombre;
-
-
-    userRole.textContent =
-        currentProfile.rol === "admin"
-            ? "Administrador"
-            : "Usuario";
-
-
-    userAvatar.textContent =
-        nombre
-            .charAt(0)
-            .toUpperCase();
-
-
-    /*
-     * Mostrar administración
-     */
-
-    if (
-        currentProfile.rol === "admin"
-    ) {
-
-        adminMenu.style.display =
-            "block";
-
-    } else {
-
-        adminMenu.style.display =
-            "none";
-    }
-
-}
-
-
-/* ==========================================================
-   NAVEGACIÓN
-========================================================== */
-
-function setupNavigation() {
-
-    document.addEventListener(
-        "click",
-        event => {
-
-            const button =
-                event.target.closest(
-                    "[data-section]"
-                );
-
-            if (!button) return;
-
-            const section =
-                button.dataset.section;
-
-            navigateTo(section);
-        }
+    console.log(
+        "✅ Sesión encontrada:",
+        currentUser.email
     );
 
+    await initializeAuthenticatedApp();
+
+} catch (error) {
+
+    console.error(
+        "❌ Error verificando sesión:",
+        error
+    );
+
+    showLogin();
+}
+```
+
 }
 
+/* =========================================================
+7. CAMBIOS DE AUTENTICACIÓN
+========================================================= */
 
-function navigateTo(section) {
+if (supabaseClient) {
 
-    /*
-     * Seguridad visual.
-     * Un usuario normal no debe ver
-     * el módulo administrativo.
-     */
+```
+supabaseClient.auth.onAuthStateChange(
+    async (event, session) => {
 
-    if (
-        section === "usuarios" ||
-        section === "configuracion"
-    ) {
+        console.log(
+            "🔐 Auth event:",
+            event
+        );
 
         if (
-            !currentProfile ||
-            currentProfile.rol !== "admin"
+            event === "SIGNED_IN" &&
+            session
         ) {
 
+            currentUser = session.user;
+
+            await initializeAuthenticatedApp();
+        }
+
+        if (event === "SIGNED_OUT") {
+
+            currentUser = null;
+            currentProfile = null;
+
+            showLogin();
+        }
+
+    }
+);
+```
+
+}
+
+/* =========================================================
+8. LOGIN
+========================================================= */
+
+function setupLogin() {
+
+```
+if (!loginForm) return;
+
+loginForm.addEventListener(
+    "submit",
+    async (event) => {
+
+        event.preventDefault();
+
+        if (!supabaseClient) {
+
             showToast(
-                "No tienes permisos para acceder."
+                "error",
+                "Supabase no configurado",
+                "Configura las credenciales en app.js."
             );
 
             return;
         }
-    }
 
+        const email =
+            loginEmail.value.trim();
 
-    document
-        .querySelectorAll(".page-section")
-        .forEach(sectionElement => {
+        const password =
+            loginPassword.value;
 
-            sectionElement.classList.remove(
-                "active"
+        if (!email || !password) {
+
+            showToast(
+                "warning",
+                "Campos incompletos",
+                "Ingresa tu correo y contraseña."
             );
 
-        });
+            return;
+        }
 
+        setLoginLoading(true);
 
-    const target =
-        document.getElementById(
-            `${section}Section`
-        );
+        try {
 
-
-    if (!target) return;
-
-
-    target.classList.add("active");
-
-
-    document
-        .querySelectorAll(".nav-item")
-        .forEach(item => {
-
-            item.classList.toggle(
-                "active",
-                item.dataset.section === section
+            console.log(
+                "🔐 Intentando iniciar sesión..."
             );
 
-        });
+            const {
+                data,
+                error
+            } = await supabaseClient.auth.signInWithPassword({
+                email,
+                password
+            });
 
+            if (error) {
 
-    const titles = {
+                console.error(
+                    "Error login:",
+                    error
+                );
 
-        dashboard:
-            "Dashboard",
+                showToast(
+                    "error",
+                    "No se pudo iniciar sesión",
+                    getFriendlyAuthError(error)
+                );
 
-        ingresos:
-            "Ingresos",
+                return;
+            }
 
-        salidas:
-            "Salidas",
+            if (!data.user) {
 
-        aportes:
-            "Aportes",
+                showToast(
+                    "error",
+                    "Error",
+                    "No se pudo obtener el usuario."
+                );
 
-        otros:
-            "Otros",
+                return;
+            }
 
-        metas:
-            "Metas",
+            currentUser =
+                data.user;
 
-        reportes:
-            "Reportes",
+            console.log(
+                "✅ Login correcto:",
+                currentUser.email
+            );
 
-        usuarios:
-            "Usuarios",
+            await initializeAuthenticatedApp();
 
-        configuracion:
-            "Configuración"
-    };
+        } catch (error) {
 
+            console.error(
+                "❌ Error inesperado:",
+                error
+            );
 
-    pageTitle.textContent =
-        titles[section] || "Dashboard";
+            showToast(
+                "error",
+                "Error inesperado",
+                "Ocurrió un problema al iniciar sesión."
+            );
 
+        } finally {
 
-    sidebar.classList.remove("open");
-
-
-    if (section === "reportes") {
-
-        setTimeout(
-            initializeExpenseChart,
-            100
-        );
+            setLoginLoading(false);
+        }
 
     }
+);
+```
 
 }
 
+/* =========================================================
+9. INICIALIZAR APP AUTENTICADA
+========================================================= */
 
-/* ==========================================================
-   MOBILE
-========================================================== */
+async function initializeAuthenticatedApp() {
 
-function setupMobileMenu() {
+```
+if (!currentUser) return;
 
-    menuToggle.addEventListener(
+try {
+
+    showLoadingApp();
+
+    const profile =
+        await loadCurrentProfile();
+
+    if (!profile) {
+
+        console.error(
+            "❌ No existe perfil para el usuario."
+        );
+
+        await supabaseClient.auth.signOut();
+
+        showToast(
+            "error",
+            "Perfil no encontrado",
+            "Tu usuario existe, pero no tiene un perfil registrado."
+        );
+
+        showLogin();
+
+        return;
+    }
+
+    currentProfile =
+        profile;
+
+    console.log(
+        "👤 Perfil:",
+        currentProfile
+    );
+
+    if (
+        currentProfile.estado &&
+        currentProfile.estado !== "activo"
+    ) {
+
+        await supabaseClient.auth.signOut();
+
+        showToast(
+            "error",
+            "Cuenta inactiva",
+            "Tu cuenta se encuentra desactivada."
+        );
+
+        showLogin();
+
+        return;
+    }
+
+    updateUserInterface();
+
+    showApp();
+
+    await loadDashboard();
+
+    if (currentProfile.rol === "admin") {
+
+        console.log(
+            "👑 Usuario administrador"
+        );
+
+        await loadUsers();
+
+    } else {
+
+        console.log(
+            "👤 Usuario normal"
+        );
+    }
+
+    showSection("dashboard");
+
+} catch (error) {
+
+    console.error(
+        "❌ Error inicializando aplicación:",
+        error
+    );
+
+    showToast(
+        "error",
+        "Error de inicialización",
+        error.message ||
+        "No se pudo cargar la aplicación."
+    );
+}
+```
+
+}
+
+/* =========================================================
+10. CARGAR PERFIL
+========================================================= */
+
+async function loadCurrentProfile() {
+
+```
+if (!currentUser) return null;
+
+const {
+    data,
+    error
+} = await supabaseClient
+    .from("profiles")
+    .select(`
+        id,
+        nombre,
+        apellido,
+        email,
+        usuario,
+        rol,
+        estado,
+        moneda,
+        avatar_url
+    `)
+    .eq("id", currentUser.id)
+    .single();
+
+if (error) {
+
+    console.error(
+        "❌ Error cargando perfil:",
+        error
+    );
+
+    return null;
+}
+
+return data;
+```
+
+}
+
+/* =========================================================
+11. ACTUALIZAR INTERFAZ SEGÚN USUARIO
+========================================================= */
+
+function updateUserInterface() {
+
+```
+if (!currentProfile) return;
+
+const nombre =
+    currentProfile.nombre ||
+    currentProfile.usuario ||
+    "Usuario";
+
+const apellido =
+    currentProfile.apellido ||
+    "";
+
+const fullName =
+    `${nombre} ${apellido}`.trim();
+
+const initials =
+    getInitials(
+        nombre,
+        apellido
+    );
+
+const role =
+    currentProfile.rol === "admin"
+        ? "Administrador"
+        : "Usuario";
+
+document
+    .querySelectorAll("[data-user-name]")
+    .forEach(element => {
+
+        element.textContent =
+            fullName;
+    });
+
+document
+    .querySelectorAll("[data-user-role]")
+    .forEach(element => {
+
+        element.textContent =
+            role;
+    });
+
+document
+    .querySelectorAll("[data-user-email]")
+    .forEach(element => {
+
+        element.textContent =
+            currentProfile.email ||
+            currentUser?.email ||
+            "";
+    });
+
+document
+    .querySelectorAll("[data-user-initials]")
+    .forEach(element => {
+
+        element.textContent =
+            initials;
+    });
+
+const adminMenu =
+    document.getElementById(
+        "adminMenu"
+    );
+
+if (adminMenu) {
+
+    adminMenu.hidden =
+        currentProfile.rol !== "admin";
+}
+
+const welcomeName =
+    document.getElementById(
+        "welcomeName"
+    );
+
+if (welcomeName) {
+
+    welcomeName.textContent =
+        nombre;
+}
+
+const accountRole =
+    document.getElementById(
+        "accountRole"
+    );
+
+if (accountRole) {
+
+    accountRole.textContent =
+        role;
+}
+```
+
+}
+
+/* =========================================================
+12. MOSTRAR / OCULTAR LOGIN
+========================================================= */
+
+function showLogin() {
+
+```
+if (loginScreen) {
+
+    loginScreen.hidden = false;
+}
+
+if (appContainer) {
+
+    appContainer.hidden = true;
+}
+
+document.body.classList.remove(
+    "app-loaded"
+);
+```
+
+}
+
+function showApp() {
+
+```
+if (loginScreen) {
+
+    loginScreen.hidden = true;
+}
+
+if (appContainer) {
+
+    appContainer.hidden = false;
+}
+
+document.body.classList.add(
+    "app-loaded"
+);
+```
+
+}
+
+function showLoadingApp() {
+
+```
+if (loginScreen) {
+
+    loginScreen.hidden = true;
+}
+
+if (appContainer) {
+
+    appContainer.hidden = false;
+}
+```
+
+}
+
+/* =========================================================
+13. LOGIN LOADING
+========================================================= */
+
+function setLoginLoading(loading) {
+
+```
+const button =
+    document.getElementById(
+        "loginSubmit"
+    );
+
+if (!button) return;
+
+const normalText =
+    button.querySelector(
+        ".login-submit-text"
+    );
+
+const loadingText =
+    button.querySelector(
+        ".login-submit-loading"
+    );
+
+button.disabled =
+    loading;
+
+if (normalText) {
+
+    normalText.hidden =
+        loading;
+}
+
+if (loadingText) {
+
+    loadingText.hidden =
+        !loading;
+}
+```
+
+}
+
+/* =========================================================
+14. PASSWORD
+========================================================= */
+
+function setupPasswordToggle() {
+
+```
+if (!passwordToggle || !loginPassword) {
+    return;
+}
+
+passwordToggle.addEventListener(
+    "click",
+    () => {
+
+        const isPassword =
+            loginPassword.type ===
+            "password";
+
+        loginPassword.type =
+            isPassword
+                ? "text"
+                : "password";
+
+        const icon =
+            passwordToggle.querySelector(
+                "i"
+            );
+
+        if (icon) {
+
+            icon.className =
+                isPassword
+                    ? "fa-solid fa-eye-slash"
+                    : "fa-solid fa-eye";
+        }
+    }
+);
+```
+
+}
+
+/* =========================================================
+15. NAVEGACIÓN
+========================================================= */
+
+function setupNavigation() {
+
+```
+navItems.forEach(item => {
+
+    item.addEventListener(
         "click",
         () => {
 
-            sidebar.classList.toggle(
-                "open"
-            );
+            const section =
+                item.dataset.section;
 
+            if (!section) return;
+
+            showSection(section);
+
+            closeSidebar();
         }
     );
+});
+
+document
+    .querySelectorAll("[data-go-section]")
+    .forEach(button => {
+
+        button.addEventListener(
+            "click",
+            () => {
+
+                const section =
+                    button.dataset.goSection;
+
+                if (section) {
+
+                    showSection(section);
+                }
+            }
+        );
+    });
+```
 
 }
 
+function showSection(sectionName) {
 
-/* ==========================================================
-   DASHBOARD
-========================================================== */
+```
+if (!sectionName) {
+    sectionName = "dashboard";
+}
+
+if (
+    sectionName === "usuarios" &&
+    currentProfile?.rol !== "admin"
+) {
+
+    showToast(
+        "error",
+        "Acceso denegado",
+        "No tienes permisos para acceder a esta sección."
+    );
+
+    return;
+}
+
+pageSections.forEach(section => {
+
+    section.hidden =
+        section.dataset.section !==
+        sectionName;
+});
+
+navItems.forEach(item => {
+
+    item.classList.toggle(
+        "active",
+        item.dataset.section ===
+        sectionName
+    );
+});
+
+updatePageTitle(
+    sectionName
+);
+
+if (
+    sectionName === "usuarios" &&
+    currentProfile?.rol === "admin"
+) {
+
+    loadUsers();
+}
+
+if (sectionName === "reportes") {
+
+    loadReports();
+}
+
+if (sectionName === "metas") {
+
+    loadGoals();
+}
+
+window.scrollTo({
+    top: 0,
+    behavior: "smooth"
+});
+```
+
+}
+
+/* =========================================================
+16. TÍTULO DE PÁGINA
+========================================================= */
+
+function updatePageTitle(section) {
+
+```
+const title =
+    document.getElementById(
+        "pageTitle"
+    );
+
+const eyebrow =
+    document.getElementById(
+        "pageEyebrow"
+    );
+
+if (!title) return;
+
+const titles = {
+
+    dashboard: {
+        title: "Dashboard",
+        eyebrow: "RESUMEN FINANCIERO"
+    },
+
+    ingresos: {
+        title: "Ingresos",
+        eyebrow: "GESTIÓN FINANCIERA"
+    },
+
+    salidas: {
+        title: "Salidas",
+        eyebrow: "GESTIÓN FINANCIERA"
+    },
+
+    aportes: {
+        title: "Aportes",
+        eyebrow: "GESTIÓN FINANCIERA"
+    },
+
+    otros: {
+        title: "Otros movimientos",
+        eyebrow: "GESTIÓN FINANCIERA"
+    },
+
+    metas: {
+        title: "Metas",
+        eyebrow: "OBJETIVOS FINANCIEROS"
+    },
+
+    reportes: {
+        title: "Reportes",
+        eyebrow: "ANÁLISIS FINANCIERO"
+    },
+
+    usuarios: {
+        title: "Usuarios",
+        eyebrow: "ADMINISTRACIÓN"
+    },
+
+    configuracion: {
+        title: "Configuración",
+        eyebrow: "CONFIGURACIÓN"
+    }
+
+};
+
+const data =
+    titles[section] ||
+    titles.dashboard;
+
+title.textContent =
+    data.title;
+
+if (eyebrow) {
+
+    eyebrow.textContent =
+        data.eyebrow;
+}
+```
+
+}
+
+/* =========================================================
+17. SIDEBAR
+========================================================= */
+
+function setupSidebar() {
+
+```
+if (mobileMenuBtn) {
+
+    mobileMenuBtn.addEventListener(
+        "click",
+        openSidebar
+    );
+}
+
+if (sidebarClose) {
+
+    sidebarClose.addEventListener(
+        "click",
+        closeSidebar
+    );
+}
+
+if (sidebarOverlay) {
+
+    sidebarOverlay.addEventListener(
+        "click",
+        closeSidebar
+    );
+}
+```
+
+}
+
+function openSidebar() {
+
+```
+if (!sidebar) return;
+
+sidebar.classList.add(
+    "open"
+);
+
+if (sidebarOverlay) {
+
+    sidebarOverlay.hidden =
+        false;
+}
+```
+
+}
+
+function closeSidebar() {
+
+```
+if (!sidebar) return;
+
+sidebar.classList.remove(
+    "open"
+);
+
+if (sidebarOverlay) {
+
+    sidebarOverlay.hidden =
+        true;
+}
+```
+
+}
+
+/* =========================================================
+18. LOGOUT
+========================================================= */
+
+function setupLogout() {
+
+```
+if (!logoutBtn) return;
+
+logoutBtn.addEventListener(
+    "click",
+    async () => {
+
+        if (!supabaseClient) return;
+
+        const confirmed =
+            confirm(
+                "¿Seguro que deseas cerrar sesión?"
+            );
+
+        if (!confirmed) return;
+
+        try {
+
+            const {
+                error
+            } =
+                await supabaseClient.auth.signOut();
+
+            if (error) {
+
+                console.error(
+                    error
+                );
+
+                showToast(
+                    "error",
+                    "Error",
+                    "No se pudo cerrar la sesión."
+                );
+
+                return;
+            }
+
+            showToast(
+                "success",
+                "Sesión cerrada",
+                "Hasta pronto."
+            );
+
+            currentUser =
+                null;
+
+            currentProfile =
+                null;
+
+            showLogin();
+
+        } catch (error) {
+
+            console.error(
+                error
+            );
+        }
+    }
+);
+```
+
+}
+
+/* =========================================================
+19. DASHBOARD
+========================================================= */
 
 async function loadDashboard() {
 
-    if (!currentUser) return;
+```
+if (!currentUser) return;
 
+try {
 
-    try {
+    const [
+        ingresosResult,
+        salidasResult,
+        aportesResult
+    ] = await Promise.all([
 
-        const [
-            incomes,
-            expenses,
-            savings
-        ] = await Promise.all([
-
-            getUserData("ingresos"),
-
-            getUserData("salidas"),
-
-            getUserData("aportes")
-
-        ]);
-
-
-        const incomeTotal =
-            sumAmounts(incomes);
-
-
-        const expenseTotal =
-            sumAmounts(expenses);
-
-
-        const savingTotal =
-            sumAmounts(savings);
-
-
-        const balance =
-            incomeTotal -
-            expenseTotal -
-            savingTotal;
-
-
-        document
-            .getElementById("incomeValue")
-            .textContent =
-            formatMoney(incomeTotal);
-
-
-        document
-            .getElementById("expenseValue")
-            .textContent =
-            formatMoney(expenseTotal);
-
-
-        document
-            .getElementById("savingValue")
-            .textContent =
-            formatMoney(savingTotal);
-
-
-        document
-            .getElementById("balanceValue")
-            .textContent =
-            formatMoney(balance);
-
-
-        initializeFinanceChart(
-            incomes,
-            expenses
-        );
-
-
-        renderRecentActivity(
-            incomes,
-            expenses,
-            savings
-        );
-
-    } catch (error) {
-
-        console.error(
-            "Error dashboard:",
-            error
-        );
-
-    }
-
-}
-
-
-/* ==========================================================
-   OBTENER DATOS
-========================================================== */
-
-async function getUserData(
-    table
-) {
-
-    const {
-        data,
-        error
-    } = await supabaseClient
-        .from(table)
-        .select("*")
-        .eq(
-            "user_id",
-            currentUser.id
-        )
-        .order(
-            "fecha",
-            {
+        supabaseClient
+            .from("ingresos")
+            .select("monto, fecha, concepto, categoria")
+            .eq("user_id", currentUser.id)
+            .order("fecha", {
                 ascending: false
-            }
-        );
+            }),
 
+        supabaseClient
+            .from("salidas")
+            .select("monto, fecha, concepto, categoria")
+            .eq("user_id", currentUser.id)
+            .order("fecha", {
+                ascending: false
+            }),
 
-    if (error) {
+        supabaseClient
+            .from("aportes")
+            .select("monto, fecha, concepto, tipo")
+            .eq("user_id", currentUser.id)
+            .order("fecha", {
+                ascending: false
+            })
+    ]);
 
+    if (ingresosResult.error) {
         console.error(
-            `Error ${table}:`,
-            error
+            "Error ingresos:",
+            ingresosResult.error
         );
-
-        return [];
     }
 
+    if (salidasResult.error) {
+        console.error(
+            "Error salidas:",
+            salidasResult.error
+        );
+    }
 
-    return data || [];
+    if (aportesResult.error) {
+        console.error(
+            "Error aportes:",
+            aportesResult.error
+        );
+    }
 
-}
+    const ingresos =
+        ingresosResult.data || [];
 
+    const salidas =
+        salidasResult.data || [];
 
-/* ==========================================================
-   SUMA
-========================================================== */
+    const aportes =
+        aportesResult.data || [];
 
-function sumAmounts(data) {
+    const totalIngresos =
+        sumAmounts(ingresos);
 
-    return data.reduce(
-        (total, item) => {
+    const totalSalidas =
+        sumAmounts(salidas);
 
-            return total +
-                Number(item.monto || 0);
+    const totalAportes =
+        sumAmounts(aportes);
 
-        },
-        0
+    const balance =
+        totalIngresos -
+        totalSalidas -
+        totalAportes;
+
+    updateDashboardNumbers({
+        balance,
+        ingresos: totalIngresos,
+        salidas: totalSalidas,
+        aportes: totalAportes
+    });
+
+    renderFlowChart(
+        ingresos,
+        salidas,
+        aportes
     );
 
+    renderRecentActivity(
+        ingresos,
+        salidas,
+        aportes
+    );
+
+    await loadGoalsPreview();
+
+} catch (error) {
+
+    console.error(
+        "❌ Error dashboard:",
+        error
+    );
+}
+```
+
 }
 
+/* =========================================================
+20. NÚMEROS DASHBOARD
+========================================================= */
 
-/* ==========================================================
-   FORMATO DINERO
-========================================================== */
+function updateDashboardNumbers(data) {
 
-function formatMoney(amount) {
+```
+setText(
+    "balanceValue",
+    formatMoney(data.balance)
+);
 
-    return Number(amount || 0)
-        .toLocaleString(
-            "es-PE",
-            {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            }
-        );
+setText(
+    "incomeValue",
+    formatMoney(data.ingresos)
+);
+
+setText(
+    "expenseValue",
+    formatMoney(data.salidas)
+);
+
+setText(
+    "contributionValue",
+    formatMoney(data.aportes)
+);
+```
 
 }
 
+/* =========================================================
+21. GRÁFICO FLUJO
+========================================================= */
 
-/* ==========================================================
-   GRÁFICO
-========================================================== */
-
-function initializeFinanceChart(
-    incomes,
-    expenses
+function renderFlowChart(
+ingresos,
+salidas,
+aportes
 ) {
 
-    const canvas =
-        document.getElementById(
-            "financeChart"
-        );
+```
+const canvas =
+    document.getElementById(
+        "flowChart"
+    );
 
+if (!canvas) return;
 
-    if (!canvas) return;
+if (flowChart) {
 
+    flowChart.destroy();
+}
 
-    if (financeChart) {
+const labels =
+    getLastSixMonths();
 
-        financeChart.destroy();
+const incomeData =
+    getMonthlyTotals(
+        ingresos,
+        labels
+    );
 
-    }
+const expenseData =
+    getMonthlyTotals(
+        salidas,
+        labels
+    );
 
+const contributionData =
+    getMonthlyTotals(
+        aportes,
+        labels
+    );
 
-    const months =
-        getLastMonths(6);
+if (!window.Chart) {
 
+    console.warn(
+        "Chart.js no está disponible."
+    );
 
-    const incomeValues =
-        months.map(month => {
+    return;
+}
 
-            return incomes
-                .filter(item =>
-                    item.fecha?.startsWith(month.key)
-                )
-                .reduce(
-                    (sum, item) =>
-                        sum +
-                        Number(item.monto || 0),
-                    0
-                );
+flowChart =
+    new Chart(
+        canvas.getContext("2d"),
+        {
+            type: "line",
 
-        });
+            data: {
 
+                labels,
 
-    const expenseValues =
-        months.map(month => {
+                datasets: [
 
-            return expenses
-                .filter(item =>
-                    item.fecha?.startsWith(month.key)
-                )
-                .reduce(
-                    (sum, item) =>
-                        sum +
-                        Number(item.monto || 0),
-                    0
-                );
+                    {
+                        label: "Ingresos",
+                        data: incomeData,
+                        tension: 0.4,
+                        borderWidth: 2,
+                        fill: false
+                    },
 
-        });
+                    {
+                        label: "Salidas",
+                        data: expenseData,
+                        tension: 0.4,
+                        borderWidth: 2,
+                        fill: false
+                    },
 
+                    {
+                        label: "Aportes",
+                        data: contributionData,
+                        tension: 0.4,
+                        borderWidth: 2,
+                        fill: false
+                    }
 
-    financeChart =
-        new Chart(
-            canvas,
-            {
+                ]
+            },
 
-                type: "line",
+            options: {
 
-                data: {
+                responsive: true,
 
-                    labels:
-                        months.map(
-                            month => month.label
-                        ),
+                maintainAspectRatio: false,
 
-                    datasets: [
+                interaction: {
+                    mode: "index",
+                    intersect: false
+                },
 
-                        {
-                            label:
-                                "Ingresos",
+                plugins: {
 
-                            data:
-                                incomeValues,
-
-                            borderWidth: 2,
-
-                            tension: .4,
-
-                            fill: false,
-
-                            pointRadius: 3
-                        },
-
-                        {
-                            label:
-                                "Salidas",
-
-                            data:
-                                expenseValues,
-
-                            borderWidth: 2,
-
-                            tension: .4,
-
-                            fill: false,
-
-                            pointRadius: 3
-                        }
-
-                    ]
+                    legend: {
+                        display: true
+                    }
 
                 },
 
-                options: {
+                scales: {
 
-                    responsive: true,
+                    y: {
 
-                    maintainAspectRatio: false,
+                        beginAtZero: true,
 
-                    plugins: {
+                        ticks: {
 
-                        legend: {
+                            callback: value => {
 
-                            position:
-                                "bottom",
-
-                            labels: {
-
-                                usePointStyle:
-                                    true,
-
-                                boxWidth: 7,
-
-                                font: {
-
-                                    size: 10
-
-                                }
-
-                            }
-
-                        }
-
-                    },
-
-                    scales: {
-
-                        y: {
-
-                            beginAtZero: true,
-
-                            grid: {
-
-                                drawBorder:
-                                    false
-
-                            }
-
-                        },
-
-                        x: {
-
-                            grid: {
-
-                                display: false
-
+                                return formatMoney(
+                                    value
+                                );
                             }
 
                         }
@@ -770,246 +1359,569 @@ function initializeFinanceChart(
                     }
 
                 }
-
             }
-        );
+        }
+    );
+```
 
 }
 
-
-/* ==========================================================
-   MESES
-========================================================== */
-
-function getLastMonths(count) {
-
-    const result = [];
-
-    const now =
-        new Date();
-
-
-    for (
-        let i = count - 1;
-        i >= 0;
-        i--
-    ) {
-
-        const date =
-            new Date(
-                now.getFullYear(),
-                now.getMonth() - i,
-                1
-            );
-
-
-        const year =
-            date.getFullYear();
-
-
-        const month =
-            String(
-                date.getMonth() + 1
-            ).padStart(2, "0");
-
-
-        const label =
-            date.toLocaleDateString(
-                "es-PE",
-                {
-                    month: "short"
-                }
-            );
-
-
-        result.push({
-
-            key:
-                `${year}-${month}`,
-
-            label:
-                label.charAt(0)
-                    .toUpperCase() +
-                label.slice(1)
-
-        });
-
-    }
-
-
-    return result;
-
-}
-
-
-/* ==========================================================
-   ACTIVIDAD
-========================================================== */
+/* =========================================================
+22. ACTIVIDAD RECIENTE
+========================================================= */
 
 function renderRecentActivity(
-    incomes,
-    expenses,
-    savings
+ingresos,
+salidas,
+aportes
 ) {
 
-    const container =
-        document.getElementById(
-            "recentActivity"
-        );
+```
+const container =
+    document.getElementById(
+        "recentActivity"
+    );
 
+if (!container) return;
 
-    const activities = [
+const activity = [
 
-        ...incomes.map(item => ({
+    ...ingresos.map(item => ({
+        ...item,
+        type: "income"
+    })),
 
-            ...item,
+    ...salidas.map(item => ({
+        ...item,
+        type: "expense"
+    })),
 
-            type: "income"
+    ...aportes.map(item => ({
+        ...item,
+        type: "contribution"
+    }))
 
-        })),
-
-        ...expenses.map(item => ({
-
-            ...item,
-
-            type: "expense"
-
-        })),
-
-        ...savings.map(item => ({
-
-            ...item,
-
-            type: "saving"
-
-        }))
-
-    ];
-
-
-    activities.sort(
+]
+    .sort(
         (a, b) =>
             new Date(b.fecha) -
             new Date(a.fecha)
-    );
+    )
+    .slice(0, 6);
 
+if (!activity.length) {
 
-    const latest =
-        activities.slice(0, 6);
+    container.innerHTML = `
+        <div class="empty-state small">
+            <div class="empty-icon">
+                <i class="fa-solid fa-receipt"></i>
+            </div>
 
+            <h4>Sin movimientos</h4>
 
-    if (!latest.length) {
+            <p>
+                Todavía no tienes movimientos registrados.
+            </p>
+        </div>
+    `;
 
-        return;
-    }
+    return;
+}
 
+container.innerHTML =
+    activity
+        .map(item => {
 
-    container.innerHTML =
-        latest.map(item => {
+            const typeData =
+                getActivityTypeData(
+                    item.type
+                );
 
-            const income =
-                item.type === "income";
-
-            const saving =
-                item.type === "saving";
-
-
-            const icon =
-                income
-                    ? "fa-arrow-trend-up"
-                    : saving
-                        ? "fa-piggy-bank"
-                        : "fa-arrow-trend-down";
-
-
-            const amountPrefix =
-                income
+            const sign =
+                item.type === "income"
                     ? "+"
                     : "-";
 
-
             return `
-
                 <div class="activity-item">
 
-                    <div
-                        class="activity-icon"
-                        style="
-                            background:
-                            ${
-                                income
-                                    ? "var(--success-soft)"
-                                    : "var(--danger-soft)"
-                            };
-                            color:
-                            ${
-                                income
-                                    ? "var(--success)"
-                                    : "var(--danger)"
-                            };
-                        "
-                    >
-
-                        <i class="fa-solid ${icon}"></i>
-
+                    <div class="activity-icon ${typeData.class}">
+                        <i class="${typeData.icon}"></i>
                     </div>
 
                     <div class="activity-info">
 
                         <strong>
                             ${escapeHTML(
-                                item.concepto
+                                item.concepto ||
+                                "Movimiento"
                             )}
                         </strong>
 
                         <span>
-                            ${item.fecha || ""}
+                            ${formatDate(
+                                item.fecha
+                            )}
                         </span>
 
                     </div>
 
-                    <div class="activity-amount">
+                    <div class="activity-amount ${typeData.class}">
+                        ${sign}${formatMoney(
+                            item.monto
+                        )}
+                    </div>
 
-                        ${amountPrefix}
-                        S/
-                        ${formatMoney(item.monto)}
+                </div>
+            `;
+        })
+        .join("");
+```
+
+}
+
+/* =========================================================
+23. METAS
+========================================================= */
+
+async function loadGoalsPreview() {
+
+```
+if (!currentUser) return;
+
+const container =
+    document.getElementById(
+        "goalsPreview"
+    );
+
+if (!container) return;
+
+const {
+    data,
+    error
+} = await supabaseClient
+    .from("metas")
+    .select(`
+        id,
+        nombre,
+        objetivo,
+        monto_actual,
+        fecha_objetivo
+    `)
+    .eq(
+        "user_id",
+        currentUser.id
+    )
+    .order(
+        "created_at",
+        {
+            ascending: false
+        }
+    )
+    .limit(4);
+
+if (error) {
+
+    console.error(
+        "Error metas:",
+        error
+    );
+
+    return;
+}
+
+const goals =
+    data || [];
+
+if (!goals.length) {
+
+    container.innerHTML = `
+        <div class="empty-state small">
+
+            <div class="empty-icon">
+                <i class="fa-solid fa-bullseye"></i>
+            </div>
+
+            <h4>No tienes metas todavía</h4>
+
+            <p>
+                Crea una meta para empezar a planificar tu futuro financiero.
+            </p>
+
+        </div>
+    `;
+
+    return;
+}
+
+container.innerHTML =
+    goals
+        .map(goal => {
+
+            const percentage =
+                goal.objetivo > 0
+                    ? Math.min(
+                        100,
+                        (
+                            Number(
+                                goal.monto_actual
+                            ) /
+                            Number(
+                                goal.objetivo
+                            )
+                        ) * 100
+                    )
+                    : 0;
+
+            return `
+                <div class="goal-item">
+
+                    <div class="goal-top">
+
+                        <span class="goal-name">
+                            ${escapeHTML(
+                                goal.nombre
+                            )}
+                        </span>
+
+                        <span class="goal-percentage">
+                            ${percentage.toFixed(0)}%
+                        </span>
+
+                    </div>
+
+                    <div class="goal-progress">
+
+                        <div
+                            class="goal-progress-bar"
+                            style="width:${percentage}%"
+                        ></div>
+
+                    </div>
+
+                    <div class="goal-bottom">
+
+                        <span>
+                            ${formatMoney(
+                                goal.monto_actual
+                            )}
+                        </span>
+
+                        <span>
+                            Meta:
+                            ${formatMoney(
+                                goal.objetivo
+                            )}
+                        </span>
 
                     </div>
 
                 </div>
-
             `;
-
-        }).join("");
+        })
+        .join("");
+```
 
 }
 
+/* =========================================================
+24. CARGAR METAS
+========================================================= */
 
-/* ==========================================================
-   USUARIOS
-========================================================== */
+async function loadGoals() {
+
+```
+if (!currentUser) return;
+
+const container =
+    document.getElementById(
+        "goalsPageContainer"
+    );
+
+if (!container) return;
+
+const {
+    data,
+    error
+} = await supabaseClient
+    .from("metas")
+    .select("*")
+    .eq(
+        "user_id",
+        currentUser.id
+    )
+    .order(
+        "created_at",
+        {
+            ascending: false
+        }
+    );
+
+if (error) {
+
+    console.error(
+        "Error cargando metas:",
+        error
+    );
+
+    return;
+}
+
+const goals =
+    data || [];
+
+if (!goals.length) {
+
+    container.innerHTML = `
+        <div class="empty-state">
+
+            <div class="empty-icon">
+                <i class="fa-solid fa-bullseye"></i>
+            </div>
+
+            <h4>Aún no tienes metas</h4>
+
+            <p>
+                Cuando agreguemos el formulario de metas podrás crear tus objetivos financieros aquí.
+            </p>
+
+        </div>
+    `;
+
+    return;
+}
+
+container.innerHTML =
+    goals
+        .map(goal => {
+
+            const percentage =
+                goal.objetivo > 0
+                    ? Math.min(
+                        100,
+                        (
+                            Number(
+                                goal.monto_actual
+                            ) /
+                            Number(
+                                goal.objetivo
+                            )
+                        ) * 100
+                    )
+                    : 0;
+
+            return `
+                <div class="goal-page-card">
+
+                    <div class="goal-page-card-header">
+
+                        <div class="goal-page-icon">
+                            <i class="fa-solid fa-bullseye"></i>
+                        </div>
+
+                        <div>
+
+                            <h4>
+                                ${escapeHTML(
+                                    goal.nombre
+                                )}
+                            </h4>
+
+                            <p>
+                                ${
+                                    goal.fecha_objetivo
+                                        ? `Objetivo: ${formatDate(goal.fecha_objetivo)}`
+                                        : "Sin fecha objetivo"
+                                }
+                            </p>
+
+                        </div>
+
+                    </div>
+
+                    <div class="goal-page-amount">
+
+                        <strong>
+                            ${formatMoney(
+                                goal.monto_actual
+                            )}
+                        </strong>
+
+                        <span>
+                            de ${formatMoney(
+                                goal.objetivo
+                            )}
+                        </span>
+
+                    </div>
+
+                    <div class="goal-progress">
+
+                        <div
+                            class="goal-progress-bar"
+                            style="width:${percentage}%"
+                        ></div>
+
+                    </div>
+
+                    <div class="goal-bottom">
+
+                        <span>
+                            Progreso
+                        </span>
+
+                        <span>
+                            ${percentage.toFixed(0)}%
+                        </span>
+
+                    </div>
+
+                </div>
+            `;
+        })
+        .join("");
+```
+
+}
+
+/* =========================================================
+25. REPORTES
+========================================================= */
+
+async function loadReports() {
+
+```
+if (!currentUser) return;
+
+try {
+
+    const [
+        ingresosResult,
+        salidasResult,
+        aportesResult
+    ] = await Promise.all([
+
+        supabaseClient
+            .from("ingresos")
+            .select("monto"),
+
+        supabaseClient
+            .from("salidas")
+            .select("monto"),
+
+        supabaseClient
+            .from("aportes")
+            .select("monto")
+
+    ]);
+
+    const ingresos =
+        sumAmounts(
+            ingresosResult.data || []
+        );
+
+    const salidas =
+        sumAmounts(
+            salidasResult.data || []
+        );
+
+    const aportes =
+        sumAmounts(
+            aportesResult.data || []
+        );
+
+    const balance =
+        ingresos -
+        salidas -
+        aportes;
+
+    setText(
+        "reportIncome",
+        formatMoney(ingresos)
+    );
+
+    setText(
+        "reportExpense",
+        formatMoney(salidas)
+    );
+
+    setText(
+        "reportContribution",
+        formatMoney(aportes)
+    );
+
+    setText(
+        "reportBalance",
+        formatMoney(balance)
+    );
+
+} catch (error) {
+
+    console.error(
+        "Error reportes:",
+        error
+    );
+}
+```
+
+}
+
+/* =========================================================
+26. ADMIN — CARGAR USUARIOS
+========================================================= */
 
 async function loadUsers() {
 
-    if (
-        !currentProfile ||
-        currentProfile.rol !== "admin"
-    ) return;
+```
+if (
+    !currentUser ||
+    currentProfile?.rol !== "admin"
+) {
+    return;
+}
 
+const tbody =
+    document.getElementById(
+        "usersTableBody"
+    );
+
+if (!tbody) return;
+
+tbody.innerHTML = `
+    <tr>
+        <td colspan="6">
+            <div class="loading-state">
+                <i class="fa-solid fa-spinner fa-spin"></i>
+                Cargando usuarios...
+            </div>
+        </td>
+    </tr>
+`;
+
+try {
 
     const {
         data,
         error
     } = await supabaseClient
         .from("profiles")
-        .select("*")
+        .select(`
+            id,
+            nombre,
+            apellido,
+            email,
+            usuario,
+            rol,
+            estado,
+            moneda,
+            created_at
+        `)
         .order(
             "created_at",
             {
                 ascending: false
             }
         );
-
 
     if (error) {
 
@@ -1018,94 +1930,141 @@ async function loadUsers() {
             error
         );
 
-        return;
-    }
-
-
-    renderUsers(data || []);
-
-}
-
-
-/* ==========================================================
-   RENDER USERS
-========================================================== */
-
-function renderUsers(users) {
-
-    const tbody =
-        document.getElementById(
-            "usersTableBody"
-        );
-
-
-    if (!users.length) {
-
         tbody.innerHTML = `
-
             <tr>
-
-                <td
-                    colspan="6"
-                    style="
-                        text-align:center;
-                        padding:40px;
-                        color:var(--text-light);
-                    "
-                >
-
-                    No hay usuarios registrados.
-
+                <td colspan="6">
+                    <div class="empty-state small">
+                        <div class="empty-icon">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                        </div>
+                        <h4>No se pudieron cargar los usuarios</h4>
+                        <p>
+                            ${escapeHTML(
+                                error.message
+                            )}
+                        </p>
+                    </div>
                 </td>
-
             </tr>
-
         `;
 
         return;
     }
 
+    allUsers =
+        data || [];
 
-    tbody.innerHTML =
-        users.map(user => {
+    renderUsers(
+        allUsers
+    );
 
-            const isActive =
-                user.estado === "activo";
+    updateUserCount(
+        allUsers.length
+    );
 
+} catch (error) {
 
-            const date =
-                user.created_at
-                    ? new Date(
-                        user.created_at
-                    ).toLocaleDateString(
-                        "es-PE"
-                    )
-                    : "-";
+    console.error(
+        "❌ Error:",
+        error
+    );
+}
+```
 
+}
+
+/* =========================================================
+27. RENDER USUARIOS
+========================================================= */
+
+function renderUsers(users) {
+
+```
+const tbody =
+    document.getElementById(
+        "usersTableBody"
+    );
+
+if (!tbody) return;
+
+if (!users.length) {
+
+    tbody.innerHTML = `
+        <tr class="empty-table-row">
+
+            <td colspan="6">
+
+                <div class="empty-state small">
+
+                    <div class="empty-icon">
+                        <i class="fa-solid fa-users"></i>
+                    </div>
+
+                    <h4>No hay usuarios</h4>
+
+                    <p>
+                        No se encontraron usuarios con los filtros actuales.
+                    </p>
+
+                </div>
+
+            </td>
+
+        </tr>
+    `;
+
+    return;
+}
+
+tbody.innerHTML =
+    users
+        .map(user => {
+
+            const name =
+                `${user.nombre || ""} ${user.apellido || ""}`
+                    .trim() ||
+                user.usuario ||
+                "Usuario";
+
+            const initials =
+                getInitials(
+                    user.nombre,
+                    user.apellido
+                );
+
+            const isCurrent =
+                user.id ===
+                currentUser?.id;
 
             return `
-
                 <tr>
 
                     <td>
 
-                        <strong>
-                            ${escapeHTML(
-                                `${user.nombre || ""} ${user.apellido || ""}`
-                            )}
-                        </strong>
+                        <div class="table-user">
 
-                        <div
-                            style="
-                                color:var(--text-light);
-                                font-size:10px;
-                                margin-top:3px;
-                            "
-                        >
+                            <div class="table-avatar">
+                                ${escapeHTML(
+                                    initials
+                                )}
+                            </div>
 
-                            @${escapeHTML(
-                                user.usuario || "-"
-                            )}
+                            <div>
+
+                                <strong>
+                                    ${escapeHTML(
+                                        name
+                                    )}
+                                </strong>
+
+                                <span>
+                                    ${escapeHTML(
+                                        user.usuario ||
+                                        "Sin usuario"
+                                    )}
+                                </span>
+
+                            </div>
 
                         </div>
 
@@ -1113,37 +2072,31 @@ function renderUsers(users) {
 
                     <td>
                         ${escapeHTML(
-                            user.email || "-"
+                            user.email ||
+                            "-"
                         )}
                     </td>
 
                     <td>
 
-                        ${
-                            user.rol === "admin"
-                                ? "Administrador"
-                                : "Usuario"
-                        }
+                        <span class="role-badge ${user.rol === "admin" ? "admin" : "user"}">
+
+                            ${
+                                user.rol === "admin"
+                                    ? "Administrador"
+                                    : "Usuario"
+                            }
+
+                        </span>
 
                     </td>
 
                     <td>
 
-                        <span
-                            class="status ${
-                                isActive
-                                    ? "active"
-                                    : "inactive"
-                            }"
-                        >
-
-                            <i
-                                class="fa-solid fa-circle"
-                                style="font-size:5px"
-                            ></i>
+                        <span class="status-badge ${user.estado === "activo" ? "active" : "inactive"}">
 
                             ${
-                                isActive
+                                user.estado === "activo"
                                     ? "Activo"
                                     : "Inactivo"
                             }
@@ -1153,321 +2106,128 @@ function renderUsers(users) {
                     </td>
 
                     <td>
-                        ${date}
+                        ${escapeHTML(
+                            user.moneda ||
+                            "PEN"
+                        )}
                     </td>
 
                     <td>
 
-                        <button
-                            class="secondary-btn"
-                            style="
-                                padding:7px 10px;
-                            "
-                            onclick="
-                                toggleUserStatus(
-                                    '${user.id}',
-                                    '${isActive
-                                        ? "inactivo"
-                                        : "activo"
-                                    }'
-                                )
-                            "
-                        >
+                        <div class="table-actions">
 
                             ${
-                                isActive
-                                    ? "Desactivar"
-                                    : "Activar"
+                                isCurrent
+                                    ? `
+                                        <button
+                                            class="table-action"
+                                            title="Tu cuenta"
+                                            disabled
+                                        >
+                                            <i class="fa-solid fa-user"></i>
+                                        </button>
+                                    `
+                                    : `
+                                        <button
+                                            class="table-action toggle-user-btn"
+                                            data-id="${user.id}"
+                                            data-status="${user.estado}"
+                                            title="${
+                                                user.estado === "activo"
+                                                    ? "Desactivar"
+                                                    : "Activar"
+                                            }"
+                                        >
+
+                                            <i class="fa-solid ${
+                                                user.estado === "activo"
+                                                    ? "fa-user-slash"
+                                                    : "fa-user-check"
+                                            }"></i>
+
+                                        </button>
+                                    `
                             }
 
-                        </button>
+                        </div>
 
                     </td>
 
                 </tr>
-
             `;
+        })
+        .join("");
 
-        }).join("");
+document
+    .querySelectorAll(
+        ".toggle-user-btn"
+    )
+    .forEach(button => {
 
-}
+        button.addEventListener(
+            "click",
+            () => {
 
-
-/* ==========================================================
-   CREAR USUARIO
-========================================================== */
-
-function setupUserModal() {
-
-    newUserBtn?.addEventListener(
-        "click",
-        openUserModal
-    );
-
-
-    closeUserModal?.addEventListener(
-        "click",
-        closeModal
-    );
-
-
-    cancelUserModal?.addEventListener(
-        "click",
-        closeModal
-    );
-
-
-    userModal?.addEventListener(
-        "click",
-        event => {
-
-            if (
-                event.target === userModal
-            ) {
-
-                closeModal();
-
+                toggleUserStatus(
+                    button.dataset.id,
+                    button.dataset.status
+                );
             }
-
-        }
-    );
-
-
-    createUserForm?.addEventListener(
-        "submit",
-        createUser
-    );
+        );
+    });
+```
 
 }
 
-
-function openUserModal() {
-
-    if (
-        !currentProfile ||
-        currentProfile.rol !== "admin"
-    ) {
-
-        showToast(
-            "Solo el administrador puede crear usuarios."
-        );
-
-        return;
-    }
-
-
-    createUserForm.reset();
-
-    clearFormMessage();
-
-    userModal.classList.add(
-        "active"
-    );
-
-}
-
-
-function closeModal() {
-
-    userModal.classList.remove(
-        "active"
-    );
-
-}
-
-
-async function createUser(event) {
-
-    event.preventDefault();
-
-
-    const nombre =
-        document.getElementById(
-            "newNombre"
-        ).value.trim();
-
-
-    const apellido =
-        document.getElementById(
-            "newApellido"
-        ).value.trim();
-
-
-    const usuario =
-        document.getElementById(
-            "newUsuario"
-        ).value.trim();
-
-
-    const email =
-        document.getElementById(
-            "newEmail"
-        ).value.trim();
-
-
-    const password =
-        document.getElementById(
-            "newPassword"
-        ).value;
-
-
-    const moneda =
-        document.getElementById(
-            "newMoneda"
-        ).value;
-
-
-    if (
-        password.length < 6
-    ) {
-
-        showFormMessage(
-            "La contraseña debe tener al menos 6 caracteres.",
-            "error"
-        );
-
-        return;
-    }
-
-
-    const button =
-        document.getElementById(
-            "createUserBtn"
-        );
-
-
-    button.disabled = true;
-
-    button.innerHTML = `
-
-        <i class="fa-solid fa-spinner fa-spin"></i>
-
-        Creando...
-
-    `;
-
-
-    try {
-
-        const {
-            data,
-            error
-        } =
-            await supabaseClient.functions.invoke(
-                "crear-usuario",
-                {
-
-                    body: {
-
-                        nombre,
-                        apellido,
-                        usuario,
-                        email,
-                        password,
-                        moneda
-
-                    }
-
-                }
-            );
-
-
-        if (error) {
-
-            throw error;
-
-        }
-
-
-        if (
-            data?.error
-        ) {
-
-            throw new Error(
-                data.error
-            );
-
-        }
-
-
-        showFormMessage(
-            "Usuario creado correctamente.",
-            "success"
-        );
-
-
-        showToast(
-            "Usuario creado correctamente."
-        );
-
-
-        await loadUsers();
-
-
-        setTimeout(
-            closeModal,
-            1000
-        );
-
-
-    } catch (error) {
-
-        console.error(
-            "Error creando usuario:",
-            error
-        );
-
-
-        showFormMessage(
-            error.message ||
-            "No se pudo crear el usuario.",
-            "error"
-        );
-
-    } finally {
-
-        button.disabled = false;
-
-        button.innerHTML = `
-
-            <i class="fa-solid fa-user-plus"></i>
-
-            Crear usuario
-
-        `;
-
-    }
-
-}
-
-
-/* ==========================================================
-   CAMBIAR ESTADO
-========================================================== */
+/* =========================================================
+28. CAMBIAR ESTADO USUARIO
+========================================================= */
 
 async function toggleUserStatus(
-    userId,
-    newStatus
+userId,
+currentStatus
 ) {
 
-    if (
-        !currentProfile ||
-        currentProfile.rol !== "admin"
-    ) return;
+```
+if (
+    !currentUser ||
+    currentProfile?.rol !== "admin"
+) {
+    return;
+}
 
+const newStatus =
+    currentStatus === "activo"
+        ? "inactivo"
+        : "activo";
+
+const action =
+    newStatus === "activo"
+        ? "activar"
+        : "desactivar";
+
+const confirmed =
+    confirm(
+        `¿Deseas ${action} este usuario?`
+    );
+
+if (!confirmed) return;
+
+try {
 
     const {
         error
     } = await supabaseClient
         .from("profiles")
         .update({
-            estado: newStatus
+            estado: newStatus,
+            updated_at:
+                new Date().toISOString()
         })
         .eq(
             "id",
             userId
         );
-
 
     if (error) {
 
@@ -1476,310 +2236,1163 @@ async function toggleUserStatus(
         );
 
         showToast(
-            "No se pudo actualizar el usuario."
+            "error",
+            "No se pudo actualizar",
+            error.message
         );
 
         return;
     }
 
-
     showToast(
-        `Usuario ${
-            newStatus === "activo"
-                ? "activado"
-                : "desactivado"
-        }.`
+        "success",
+        "Usuario actualizado",
+        `El usuario ahora está ${newStatus}.`
     );
-
 
     await loadUsers();
 
+} catch (error) {
+
+    console.error(
+        error
+    );
+
+    showToast(
+        "error",
+        "Error",
+        "No se pudo actualizar el usuario."
+    );
+}
+```
+
 }
 
+/* =========================================================
+29. BUSCADOR USUARIOS
+========================================================= */
 
-/* ==========================================================
-   PASSWORD
-========================================================== */
+function setupUserSearch() {
 
-function setupPasswordToggle() {
+```
+const search =
+    document.getElementById(
+        "userSearch"
+    );
 
-    togglePassword?.addEventListener(
-        "click",
-        () => {
+if (!search) return;
 
-            const isPassword =
-                newPassword.type ===
-                "password";
+search.addEventListener(
+    "input",
+    filterUsers
+);
+```
 
+}
 
-            newPassword.type =
-                isPassword
-                    ? "text"
-                    : "password";
+function setupUserFilters() {
 
+```
+const roleFilter =
+    document.getElementById(
+        "userRoleFilter"
+    );
 
-            togglePassword.innerHTML =
-                isPassword
-                    ? `<i class="fa-regular fa-eye-slash"></i>`
-                    : `<i class="fa-regular fa-eye"></i>`;
+const statusFilter =
+    document.getElementById(
+        "userStatusFilter"
+    );
 
+if (roleFilter) {
+
+    roleFilter.addEventListener(
+        "change",
+        filterUsers
+    );
+}
+
+if (statusFilter) {
+
+    statusFilter.addEventListener(
+        "change",
+        filterUsers
+    );
+}
+```
+
+}
+
+function filterUsers() {
+
+```
+const search =
+    document.getElementById(
+        "userSearch"
+    )?.value
+        .trim()
+        .toLowerCase() || "";
+
+const role =
+    document.getElementById(
+        "userRoleFilter"
+    )?.value || "all";
+
+const status =
+    document.getElementById(
+        "userStatusFilter"
+    )?.value || "all";
+
+const filtered =
+    allUsers.filter(
+        user => {
+
+            const text =
+                [
+                    user.nombre,
+                    user.apellido,
+                    user.email,
+                    user.usuario
+                ]
+                    .filter(Boolean)
+                    .join(" ")
+                    .toLowerCase();
+
+            const matchesSearch =
+                !search ||
+                text.includes(search);
+
+            const matchesRole =
+                role === "all" ||
+                user.rol === role;
+
+            const matchesStatus =
+                status === "all" ||
+                user.estado === status;
+
+            return (
+                matchesSearch &&
+                matchesRole &&
+                matchesStatus
+            );
         }
     );
 
+renderUsers(
+    filtered
+);
+```
+
 }
 
+/* =========================================================
+30. MODAL CREAR USUARIO
+========================================================= */
 
-/* ==========================================================
-   LOGOUT
-========================================================== */
+function setupModalEvents() {
 
-function setupLogout() {
+```
+const openButton =
+    document.getElementById(
+        "openCreateUserModal"
+    );
 
-    logoutBtn.addEventListener(
+const modal =
+    document.getElementById(
+        "createUserModal"
+    );
+
+const closeButton =
+    document.getElementById(
+        "closeCreateUserModal"
+    );
+
+const cancelButton =
+    document.getElementById(
+        "cancelCreateUser"
+    );
+
+if (openButton) {
+
+    openButton.addEventListener(
         "click",
-        async () => {
+        () => {
 
-            const {
-                error
-            } =
-                await supabaseClient.auth.signOut();
+            if (
+                currentProfile?.rol !==
+                "admin"
+            ) {
 
-
-            if (error) {
-
-                console.error(
-                    error
+                showToast(
+                    "error",
+                    "Acceso denegado",
+                    "Solo un administrador puede crear usuarios."
                 );
 
                 return;
             }
 
-
-            window.location.reload();
-
+            openModal(
+                modal
+            );
         }
     );
-
 }
 
+if (closeButton) {
 
-/* ==========================================================
-   THEME
-========================================================== */
-
-function setupTheme() {
-
-    const button =
-        document.getElementById(
-            "themeToggle"
-        );
-
-
-    button?.addEventListener(
+    closeButton.addEventListener(
         "click",
-        () => {
+        () => closeModal(modal)
+    );
+}
 
-            document.body.classList.toggle(
-                "dark-mode"
-            );
+if (cancelButton) {
 
-            const dark =
-                document.body.classList.contains(
-                    "dark-mode"
+    cancelButton.addEventListener(
+        "click",
+        () => closeModal(modal)
+    );
+}
+
+if (modal) {
+
+    modal.addEventListener(
+        "click",
+        event => {
+
+            if (
+                event.target ===
+                modal
+            ) {
+
+                closeModal(
+                    modal
                 );
-
-
-            localStorage.setItem(
-                "finanzas_theme",
-                dark
-                    ? "dark"
-                    : "light"
-            );
-
+            }
         }
     );
+}
 
+const createForm =
+    document.getElementById(
+        "createUserForm"
+    );
 
-    const saved =
-        localStorage.getItem(
-            "finanzas_theme"
-        );
+if (createForm) {
 
-
-    if (
-        saved === "dark"
-    ) {
-
-        document.body.classList.add(
-            "dark-mode"
-        );
-
-    }
+    createForm.addEventListener(
+        "submit",
+        handleCreateUser
+    );
+}
+```
 
 }
 
+async function handleCreateUser(
+event
+) {
 
-/* ==========================================================
-   EXPENSE CHART
-========================================================== */
+```
+event.preventDefault();
 
-function initializeExpenseChart() {
+if (
+    currentProfile?.rol !==
+    "admin"
+) {
 
-    const canvas =
-        document.getElementById(
-            "expenseChart"
-        );
+    showToast(
+        "error",
+        "Acceso denegado",
+        "Solo un administrador puede crear usuarios."
+    );
 
+    return;
+}
 
-    if (!canvas) return;
+const nombre =
+    document
+        .getElementById(
+            "newUserNombre"
+        )
+        ?.value
+        .trim();
 
+const apellido =
+    document
+        .getElementById(
+            "newUserApellido"
+        )
+        ?.value
+        .trim();
 
-    if (expenseChart) {
+const usuario =
+    document
+        .getElementById(
+            "newUserUsuario"
+        )
+        ?.value
+        .trim();
 
-        expenseChart.destroy();
+const email =
+    document
+        .getElementById(
+            "newUserEmail"
+        )
+        ?.value
+        .trim();
 
-    }
+const password =
+    document
+        .getElementById(
+            "newUserPassword"
+        )
+        ?.value;
 
+const moneda =
+    document
+        .getElementById(
+            "newUserMoneda"
+        )
+        ?.value || "PEN";
 
-    expenseChart =
-        new Chart(
-            canvas,
+if (
+    !nombre ||
+    !email ||
+    !password
+) {
+
+    showToast(
+        "warning",
+        "Campos obligatorios",
+        "Completa nombre, email y contraseña."
+    );
+
+    return;
+}
+
+if (password.length < 6) {
+
+    showToast(
+        "warning",
+        "Contraseña demasiado corta",
+        "La contraseña debe tener al menos 6 caracteres."
+    );
+
+    return;
+}
+
+const submitButton =
+    document.getElementById(
+        "createUserSubmit"
+    );
+
+if (submitButton) {
+
+    submitButton.disabled =
+        true;
+
+    submitButton.innerHTML = `
+        <i class="fa-solid fa-spinner fa-spin"></i>
+        Creando usuario...
+    `;
+}
+
+try {
+
+    console.log(
+        "👤 Creando usuario:",
+        email
+    );
+
+    const {
+        data,
+        error
+    } =
+        await supabaseClient.functions.invoke(
+            "crear-usuario",
             {
-
-                type: "doughnut",
-
-                data: {
-
-                    labels: [
-                        "Alimentación",
-                        "Transporte",
-                        "Vivienda",
-                        "Entretenimiento",
-                        "Otros"
-                    ],
-
-                    datasets: [
-
-                        {
-
-                            data: [
-                                30,
-                                20,
-                                25,
-                                10,
-                                15
-                            ],
-
-                            borderWidth: 0
-
-                        }
-
-                    ]
-
-                },
-
-                options: {
-
-                    responsive: true,
-
-                    maintainAspectRatio: false,
-
-                    cutout: "72%",
-
-                    plugins: {
-
-                        legend: {
-
-                            position: "bottom",
-
-                            labels: {
-
-                                usePointStyle: true,
-
-                                font: {
-                                    size: 10
-                                }
-
-                            }
-
-                        }
-
-                    }
-
+                body: {
+                    nombre,
+                    apellido,
+                    usuario,
+                    email,
+                    password,
+                    moneda
                 }
-
             }
         );
 
+    if (error) {
+
+        console.error(
+            "Error Edge Function:",
+            error
+        );
+
+        throw error;
+    }
+
+    if (
+        data &&
+        data.error
+    ) {
+
+        throw new Error(
+            data.error
+        );
+    }
+
+    console.log(
+        "✅ Usuario creado:",
+        data
+    );
+
+    showToast(
+        "success",
+        "Usuario creado",
+        `La cuenta ${email} fue creada correctamente.`
+    );
+
+    const form =
+        document.getElementById(
+            "createUserForm"
+        );
+
+    if (form) {
+
+        form.reset();
+    }
+
+    const modal =
+        document.getElementById(
+            "createUserModal"
+        );
+
+    closeModal(
+        modal
+    );
+
+    await loadUsers();
+
+} catch (error) {
+
+    console.error(
+        "❌ Error creando usuario:",
+        error
+    );
+
+    showToast(
+        "error",
+        "No se pudo crear el usuario",
+        error.message ||
+        "Revisa la Edge Function crear-usuario."
+    );
+
+} finally {
+
+    if (submitButton) {
+
+        submitButton.disabled =
+            false;
+
+        submitButton.innerHTML = `
+            <i class="fa-solid fa-user-plus"></i>
+            Crear usuario
+        `;
+    }
+}
+```
+
 }
 
+/* =========================================================
+31. GENERADOR DE CONTRASEÑA
+========================================================= */
 
-/* ==========================================================
-   MENSAJES
-========================================================== */
+function setupPasswordGenerator() {
 
-function showFormMessage(
-    message,
-    type
+```
+const button =
+    document.getElementById(
+        "generatePassword"
+    );
+
+const input =
+    document.getElementById(
+        "newUserPassword"
+    );
+
+if (!button || !input) {
+    return;
+}
+
+button.addEventListener(
+    "click",
+    () => {
+
+        const password =
+            generatePassword();
+
+        input.value =
+            password;
+
+        input.type =
+            "text";
+
+        showToast(
+            "info",
+            "Contraseña generada",
+            "Guarda esta contraseña antes de crear la cuenta."
+        );
+    }
+);
+```
+
+}
+
+function generatePassword() {
+
+```
+const chars =
+    "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+
+let result = "";
+
+for (
+    let i = 0;
+    i < 10;
+    i++
 ) {
 
-    userFormMessage.textContent =
-        message;
+    result +=
+        chars.charAt(
+            Math.floor(
+                Math.random() *
+                chars.length
+            )
+        );
+}
 
-
-    userFormMessage.className =
-        `form-message show ${type}`;
+return result;
+```
 
 }
 
+/* =========================================================
+32. MODAL
+========================================================= */
 
-function clearFormMessage() {
+function openModal(modal) {
 
-    userFormMessage.textContent =
-        "";
+```
+if (!modal) return;
 
-    userFormMessage.className =
-        "form-message";
+modal.hidden =
+    false;
+
+document.body.style.overflow =
+    "hidden";
+```
 
 }
 
+function closeModal(modal) {
 
-function showToast(message) {
+```
+if (!modal) return;
 
-    toastMessage.textContent =
-        message;
+modal.hidden =
+    true;
 
+document.body.style.overflow =
+    "";
+```
 
-    toast.classList.add(
-        "show"
+}
+
+/* =========================================================
+33. ACCIONES RÁPIDAS
+========================================================= */
+
+function setupQuickActions() {
+
+```
+document
+    .querySelectorAll(
+        "[data-quick-action]"
+    )
+    .forEach(button => {
+
+        button.addEventListener(
+            "click",
+            () => {
+
+                const action =
+                    button.dataset.quickAction;
+
+                if (
+                    action === "income"
+                ) {
+
+                    showSection(
+                        "ingresos"
+                    );
+                }
+
+                if (
+                    action === "expense"
+                ) {
+
+                    showSection(
+                        "salidas"
+                    );
+                }
+
+                if (
+                    action === "contribution"
+                ) {
+
+                    showSection(
+                        "aportes"
+                    );
+                }
+
+                if (
+                    action === "other"
+                ) {
+
+                    showSection(
+                        "otros"
+                    );
+                }
+            }
+        );
+    });
+```
+
+}
+
+/* =========================================================
+34. TEMA
+========================================================= */
+
+function setupThemeToggle() {
+
+```
+const toggle =
+    document.getElementById(
+        "themeToggle"
     );
 
+if (!toggle) return;
 
-    setTimeout(
-        () => {
+toggle.addEventListener(
+    "click",
+    () => {
 
-            toast.classList.remove(
-                "show"
+        document.body.classList.toggle(
+            "dark-mode"
+        );
+
+        const enabled =
+            document.body.classList.contains(
+                "dark-mode"
             );
 
-        },
-        3000
+        localStorage.setItem(
+            "financeTheme",
+            enabled
+                ? "dark"
+                : "light"
+        );
+
+        const switchDot =
+            toggle.querySelector(
+                "span"
+            );
+
+        if (switchDot) {
+
+            switchDot.style.transform =
+                enabled
+                    ? "translateX(13px)"
+                    : "translateX(0)";
+        }
+    }
+);
+
+const savedTheme =
+    localStorage.getItem(
+        "financeTheme"
     );
 
+if (
+    savedTheme ===
+    "dark"
+) {
+
+    document.body.classList.add(
+        "dark-mode"
+    );
+
+    const switchDot =
+        toggle.querySelector(
+            "span"
+        );
+
+    if (switchDot) {
+
+        switchDot.style.transform =
+            "translateX(13px)";
+    }
+}
+```
+
 }
 
+/* =========================================================
+35. UTILIDADES
+========================================================= */
 
-/* ==========================================================
-   SEGURIDAD HTML
-========================================================== */
+function sumAmounts(items) {
 
-function escapeHTML(value) {
+```
+return items.reduce(
+    (
+        total,
+        item
+    ) => {
 
-    return String(value ?? "")
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
+        return (
+            total +
+            Number(
+                item.monto || 0
+            )
+        );
+    },
+    0
+);
+```
 
 }
+
+function formatMoney(
+amount
+) {
+
+```
+const currency =
+    currentProfile?.moneda ||
+    "PEN";
+
+return new Intl.NumberFormat(
+    "es-PE",
+    {
+        style: "currency",
+        currency,
+        minimumFractionDigits: 2
+    }
+).format(
+    Number(amount) || 0
+);
+```
+
+}
+
+function formatDate(
+date
+) {
+
+```
+if (!date) return "-";
+
+try {
+
+    return new Intl.DateTimeFormat(
+        "es-PE",
+        {
+            day: "2-digit",
+            month: "short",
+            year: "numeric"
+        }
+    ).format(
+        new Date(
+            `${date}T00:00:00`
+        )
+    );
+
+} catch {
+
+    return date;
+}
+```
+
+}
+
+function getInitials(
+nombre,
+apellido
+) {
+
+```
+const first =
+    nombre
+        ?.trim()
+        ?.charAt(0)
+        ?.toUpperCase() || "";
+
+const second =
+    apellido
+        ?.trim()
+        ?.charAt(0)
+        ?.toUpperCase() || "";
+
+if (first && second) {
+
+    return first + second;
+}
+
+if (first) {
+
+    return first;
+}
+
+return "U";
+```
+
+}
+
+function setText(
+id,
+value
+) {
+
+```
+const element =
+    document.getElementById(id);
+
+if (element) {
+
+    element.textContent =
+        value;
+}
+```
+
+}
+
+function getFriendlyAuthError(
+error
+) {
+
+```
+const message =
+    error?.message ||
+    "";
+
+const lower =
+    message.toLowerCase();
+
+if (
+    lower.includes(
+        "invalid login credentials"
+    )
+) {
+
+    return "Correo o contraseña incorrectos.";
+}
+
+if (
+    lower.includes(
+        "email not confirmed"
+    )
+) {
+
+    return "El correo electrónico todavía no ha sido confirmado.";
+}
+
+if (
+    lower.includes(
+        "too many requests"
+    )
+) {
+
+    return "Demasiados intentos. Espera unos minutos e inténtalo nuevamente.";
+}
+
+return message ||
+    "No se pudo iniciar sesión.";
+```
+
+}
+
+function escapeHTML(
+value
+) {
+
+```
+return String(
+    value ?? ""
+)
+    .replace(
+        /&/g,
+        "&amp;"
+    )
+    .replace(
+        /</g,
+        "&lt;"
+    )
+    .replace(
+        />/g,
+        "&gt;"
+    )
+    .replace(
+        /"/g,
+        "&quot;"
+    )
+    .replace(
+        /'/g,
+        "&#039;"
+    );
+```
+
+}
+
+/* =========================================================
+36. DATOS GRÁFICOS
+========================================================= */
+
+function getLastSixMonths() {
+
+```
+const result = [];
+
+const now =
+    new Date();
+
+for (
+    let i = 5;
+    i >= 0;
+    i--
+) {
+
+    const date =
+        new Date(
+            now.getFullYear(),
+            now.getMonth() - i,
+            1
+        );
+
+    result.push(
+        date.toLocaleDateString(
+            "es-PE",
+            {
+                month: "short"
+            }
+        )
+    );
+}
+
+return result;
+```
+
+}
+
+function getMonthlyTotals(
+items,
+labels
+) {
+
+```
+const now =
+    new Date();
+
+const totals =
+    [];
+
+for (
+    let i = 5;
+    i >= 0;
+    i--
+) {
+
+    const target =
+        new Date(
+            now.getFullYear(),
+            now.getMonth() - i,
+            1
+        );
+
+    const year =
+        target.getFullYear();
+
+    const month =
+        target.getMonth();
+
+    const total =
+        items.reduce(
+            (
+                sum,
+                item
+            ) => {
+
+                const date =
+                    new Date(
+                        `${item.fecha}T00:00:00`
+                    );
+
+                if (
+                    date.getFullYear() ===
+                        year &&
+                    date.getMonth() ===
+                        month
+                ) {
+
+                    return (
+                        sum +
+                        Number(
+                            item.monto || 0
+                        )
+                    );
+                }
+
+                return sum;
+            },
+            0
+        );
+
+    totals.push(
+        total
+    );
+}
+
+return totals;
+```
+
+}
+
+function getActivityTypeData(
+type
+) {
+
+```
+const data = {
+
+    income: {
+        icon:
+            "fa-solid fa-arrow-trend-up",
+        class:
+            "income"
+    },
+
+    expense: {
+        icon:
+            "fa-solid fa-arrow-trend-down",
+        class:
+            "expense"
+    },
+
+    contribution: {
+        icon:
+            "fa-solid fa-piggy-bank",
+        class:
+            "contribution"
+    }
+
+};
+
+return (
+    data[type] ||
+    data.income
+);
+```
+
+}
+
+/* =========================================================
+37. CONTADOR USUARIOS
+========================================================= */
+
+function updateUserCount(
+count
+) {
+
+```
+const element =
+    document.getElementById(
+        "userCount"
+    );
+
+if (!element) return;
+
+element.textContent =
+    count;
+```
+
+}
+
+/* =========================================================
+38. TECLA ESC
+========================================================= */
+
+document.addEventListener(
+"keydown",
+event => {
+
+```
+    if (
+        event.key !==
+        "Escape"
+    ) {
+        return;
+    }
+
+    const modal =
+        document.getElementById(
+            "createUserModal"
+        );
+
+    if (
+        modal &&
+        !modal.hidden
+    ) {
+
+        closeModal(
+            modal
+        );
+    }
+
+    closeSidebar();
+}
+```
+
+);
+
+/* =========================================================
+39. EXPORTAR DEBUG
+========================================================= */
+
+window.FinanzasApp = {
+
+```
+getCurrentUser: () =>
+    currentUser,
+
+getCurrentProfile: () =>
+    currentProfile,
+
+reloadDashboard:
+    loadDashboard,
+
+reloadUsers:
+    loadUsers,
+
+showSection:
+    showSection
+```
+
+};
+
+console.log(
+"💰 FinanzasPersonales listo."
+);
