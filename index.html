@@ -1,193 +1,484 @@
 <!DOCTYPE html>
+
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+```
+<title>FinanzasPersonales</title>
 
-    <title>FinanzasPersonales</title>
+<meta
+    name="description"
+    content="Gestiona tus ingresos, gastos, aportes y metas financieras desde un solo lugar."
+>
 
-    <meta
-        name="description"
-        content="Gestión inteligente de tus finanzas personales"
-    >
+<!-- Google Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet"
+>
 
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- Font Awesome -->
+<link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+>
 
-    <link
-        href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap"
-        rel="stylesheet"
-    >
+<!-- Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-    <!-- Icons -->
-    <link
-        rel="stylesheet"
-        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
-    >
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    <!-- Supabase -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- CSS -->
+<link rel="stylesheet" href="style.css">
+```
 
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-    <!-- CSS -->
-    <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
-<!-- =========================================
-     APP
-========================================= -->
+```
+<!-- =========================================================
+     LOGIN
+========================================================== -->
 
-<div id="app" class="app">
+<div id="loginScreen" class="login-screen">
 
-    <!-- =====================================
+    <div class="login-background">
+        <div class="login-orb login-orb-one"></div>
+        <div class="login-orb login-orb-two"></div>
+        <div class="login-grid"></div>
+    </div>
+
+    <div class="login-container">
+
+        <div class="login-brand">
+            <div class="login-logo">
+                <i class="fa-solid fa-wallet"></i>
+            </div>
+
+            <div>
+                <h1>Finanzas<span>Personales</span></h1>
+                <p>Controla tu dinero. Alcanza tus metas.</p>
+            </div>
+        </div>
+
+        <div class="login-card">
+
+            <div class="login-card-header">
+                <span class="login-welcome">Bienvenido de nuevo</span>
+
+                <h2>Iniciar sesión</h2>
+
+                <p>
+                    Ingresa a tu cuenta para continuar administrando
+                    tus finanzas.
+                </p>
+            </div>
+
+            <form id="loginForm" class="login-form">
+
+                <div class="form-group">
+
+                    <label for="loginEmail">
+                        <i class="fa-regular fa-envelope"></i>
+                        Correo electrónico
+                    </label>
+
+                    <div class="input-wrapper">
+
+                        <i class="fa-regular fa-envelope input-icon"></i>
+
+                        <input
+                            type="email"
+                            id="loginEmail"
+                            name="email"
+                            placeholder="admin@finanzas.com"
+                            autocomplete="email"
+                            required
+                        >
+
+                    </div>
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="loginPassword">
+                        <i class="fa-solid fa-lock"></i>
+                        Contraseña
+                    </label>
+
+                    <div class="input-wrapper">
+
+                        <i class="fa-solid fa-lock input-icon"></i>
+
+                        <input
+                            type="password"
+                            id="loginPassword"
+                            name="password"
+                            placeholder="Ingresa tu contraseña"
+                            autocomplete="current-password"
+                            required
+                        >
+
+                        <button
+                            type="button"
+                            class="password-toggle"
+                            id="toggleLoginPassword"
+                            aria-label="Mostrar contraseña"
+                        >
+                            <i class="fa-regular fa-eye"></i>
+                        </button>
+
+                    </div>
+
+                </div>
+
+
+                <div class="login-options">
+
+                    <label class="remember-me">
+                        <input
+                            type="checkbox"
+                            id="rememberLogin"
+                        >
+
+                        <span>Recordarme</span>
+                    </label>
+
+                    <button
+                        type="button"
+                        class="forgot-password"
+                        id="forgotPasswordBtn"
+                    >
+                        ¿Olvidaste tu contraseña?
+                    </button>
+
+                </div>
+
+
+                <button
+                    type="submit"
+                    class="btn btn-primary login-submit"
+                    id="loginSubmit"
+                >
+
+                    <span class="login-submit-text">
+                        Iniciar sesión
+                    </span>
+
+                    <span
+                        class="login-submit-loading"
+                        id="loginLoading"
+                        hidden
+                    >
+                        <i class="fa-solid fa-circle-notch fa-spin"></i>
+                        Ingresando...
+                    </span>
+
+                </button>
+
+            </form>
+
+
+            <div class="login-security">
+
+                <i class="fa-solid fa-shield-halved"></i>
+
+                <span>
+                    Tus datos están protegidos mediante
+                    autenticación segura.
+                </span>
+
+            </div>
+
+        </div>
+
+
+        <div class="login-footer">
+
+            <span>
+                © 2026 FinanzasPersonales
+            </span>
+
+            <span class="login-footer-dot">•</span>
+
+            <span>
+                Gestión financiera inteligente
+            </span>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- =========================================================
+     APLICACIÓN PRINCIPAL
+========================================================== -->
+
+<div id="app" class="app-container" hidden>
+
+    <!-- =====================================================
          SIDEBAR
-    ====================================== -->
+    ====================================================== -->
 
     <aside id="sidebar" class="sidebar">
 
-        <div class="brand">
+        <div class="sidebar-header">
 
-            <div class="brand-logo">
-                <i class="fa-solid fa-chart-line"></i>
+            <div class="brand">
+
+                <div class="brand-icon">
+                    <i class="fa-solid fa-wallet"></i>
+                </div>
+
+                <div class="brand-text">
+                    <h1>Finanzas<span>Personales</span></h1>
+                    <small>Gestión financiera</small>
+                </div>
+
             </div>
 
-            <div class="brand-text">
-                <strong>Finanzas</strong>
-                <span>Personales</span>
-            </div>
+            <button
+                type="button"
+                class="sidebar-close"
+                id="sidebarClose"
+                aria-label="Cerrar menú"
+            >
+                <i class="fa-solid fa-xmark"></i>
+            </button>
 
         </div>
 
-        <div class="sidebar-section">
 
-            <span class="sidebar-title">
-                PRINCIPAL
-            </span>
+        <!-- PERFIL RESUMIDO -->
 
-            <nav class="sidebar-nav">
+        <div class="sidebar-profile">
+
+            <div class="profile-avatar" id="sidebarAvatar">
+                <span id="sidebarAvatarInitial">A</span>
+            </div>
+
+            <div class="sidebar-profile-info">
+
+                <strong id="sidebarUserName">
+                    Cargando...
+                </strong>
+
+                <span id="sidebarUserRole">
+                    Usuario
+                </span>
+
+            </div>
+
+            <i class="fa-solid fa-chevron-down profile-arrow"></i>
+
+        </div>
+
+
+        <!-- NAVEGACIÓN -->
+
+        <nav class="sidebar-nav">
+
+            <div class="nav-section">
+
+                <span class="nav-section-title">
+                    PRINCIPAL
+                </span>
 
                 <button
+                    type="button"
                     class="nav-item active"
                     data-section="dashboard"
                 >
-                    <i class="fa-solid fa-grid-2"></i>
+                    <span class="nav-icon">
+                        <i class="fa-solid fa-chart-pie"></i>
+                    </span>
+
                     <span>Dashboard</span>
                 </button>
 
+            </div>
+
+
+            <div class="nav-section">
+
+                <span class="nav-section-title">
+                    FINANZAS
+                </span>
+
                 <button
+                    type="button"
                     class="nav-item"
                     data-section="ingresos"
                 >
-                    <i class="fa-solid fa-arrow-trend-up"></i>
+                    <span class="nav-icon income-icon">
+                        <i class="fa-solid fa-arrow-trend-up"></i>
+                    </span>
+
                     <span>Ingresos</span>
                 </button>
 
+
                 <button
+                    type="button"
                     class="nav-item"
                     data-section="salidas"
                 >
-                    <i class="fa-solid fa-arrow-trend-down"></i>
+                    <span class="nav-icon expense-icon">
+                        <i class="fa-solid fa-arrow-trend-down"></i>
+                    </span>
+
                     <span>Salidas</span>
                 </button>
 
+
                 <button
+                    type="button"
                     class="nav-item"
                     data-section="aportes"
                 >
-                    <i class="fa-solid fa-piggy-bank"></i>
+                    <span class="nav-icon contribution-icon">
+                        <i class="fa-solid fa-hand-holding-dollar"></i>
+                    </span>
+
                     <span>Aportes</span>
                 </button>
 
+
                 <button
+                    type="button"
                     class="nav-item"
                     data-section="otros"
                 >
-                    <i class="fa-solid fa-wallet"></i>
+                    <span class="nav-icon other-icon">
+                        <i class="fa-solid fa-layer-group"></i>
+                    </span>
+
                     <span>Otros</span>
                 </button>
 
-            </nav>
+            </div>
 
-        </div>
 
-        <div class="sidebar-section">
+            <div class="nav-section">
 
-            <span class="sidebar-title">
-                PLANIFICACIÓN
-            </span>
-
-            <nav class="sidebar-nav">
+                <span class="nav-section-title">
+                    PLANIFICACIÓN
+                </span>
 
                 <button
+                    type="button"
                     class="nav-item"
                     data-section="metas"
                 >
-                    <i class="fa-solid fa-bullseye"></i>
+                    <span class="nav-icon goal-icon">
+                        <i class="fa-solid fa-bullseye"></i>
+                    </span>
+
                     <span>Metas</span>
                 </button>
 
+
                 <button
+                    type="button"
                     class="nav-item"
                     data-section="reportes"
                 >
-                    <i class="fa-solid fa-chart-pie"></i>
+                    <span class="nav-icon report-icon">
+                        <i class="fa-solid fa-chart-column"></i>
+                    </span>
+
                     <span>Reportes</span>
                 </button>
 
-            </nav>
+            </div>
 
-        </div>
 
-        <!-- ADMIN -->
+            <!-- ADMINISTRACIÓN -->
 
-        <div
-            id="adminMenu"
-            class="sidebar-section admin-section"
-        >
+            <div
+                class="nav-section admin-only"
+                id="adminNavigation"
+                hidden
+            >
 
-            <span class="sidebar-title">
-                ADMINISTRACIÓN
-            </span>
-
-            <nav class="sidebar-nav">
+                <span class="nav-section-title">
+                    ADMINISTRACIÓN
+                </span>
 
                 <button
+                    type="button"
                     class="nav-item"
                     data-section="usuarios"
                 >
-                    <i class="fa-solid fa-users"></i>
+                    <span class="nav-icon admin-icon">
+                        <i class="fa-solid fa-users"></i>
+                    </span>
+
                     <span>Usuarios</span>
+
+                    <span class="nav-badge">
+                        ADMIN
+                    </span>
+
                 </button>
 
+
                 <button
+                    type="button"
                     class="nav-item"
                     data-section="configuracion"
                 >
-                    <i class="fa-solid fa-sliders"></i>
+                    <span class="nav-icon settings-icon">
+                        <i class="fa-solid fa-gear"></i>
+                    </span>
+
                     <span>Configuración</span>
                 </button>
 
-            </nav>
+            </div>
 
-        </div>
+        </nav>
 
-        <div class="sidebar-bottom">
+
+        <!-- SIDEBAR FOOTER -->
+
+        <div class="sidebar-footer">
 
             <button
-                id="logoutBtn"
-                class="logout-btn"
+                type="button"
+                class="sidebar-action"
+                id="themeToggle"
             >
-                <i class="fa-solid fa-arrow-right-from-bracket"></i>
-                <span>Cerrar sesión</span>
+                <span>
+                    <i class="fa-solid fa-moon"></i>
+                    Modo oscuro
+                </span>
+
+                <div class="toggle-switch">
+                    <span></span>
+                </div>
+            </button>
+
+
+            <button
+                type="button"
+                class="sidebar-action logout-action"
+                id="logoutBtn"
+            >
+                <span>
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                    Cerrar sesión
+                </span>
             </button>
 
         </div>
@@ -195,59 +486,108 @@
     </aside>
 
 
-    <!-- =====================================
+    <!-- OVERLAY MOBILE -->
+
+    <div
+        id="sidebarOverlay"
+        class="sidebar-overlay"
+        hidden
+    ></div>
+
+
+    <!-- =====================================================
          MAIN
-    ====================================== -->
+    ====================================================== -->
 
-    <main class="main">
+    <main class="main-content">
 
-        <!-- HEADER -->
+        <!-- TOPBAR -->
 
         <header class="topbar">
 
             <div class="topbar-left">
 
                 <button
-                    id="menuToggle"
-                    class="menu-toggle"
+                    type="button"
+                    class="mobile-menu-btn"
+                    id="mobileMenuBtn"
+                    aria-label="Abrir menú"
                 >
                     <i class="fa-solid fa-bars"></i>
                 </button>
 
-                <div class="breadcrumb">
-                    <span>Finanzas</span>
-                    <i class="fa-solid fa-chevron-right"></i>
-                    <strong id="pageTitle">
+
+                <div class="page-heading">
+
+                    <span
+                        class="page-eyebrow"
+                        id="pageEyebrow"
+                    >
+                        RESUMEN FINANCIERO
+                    </span>
+
+                    <h2 id="pageTitle">
                         Dashboard
-                    </strong>
+                    </h2>
+
                 </div>
 
             </div>
 
+
             <div class="topbar-right">
 
-                <button class="icon-btn">
+                <!-- FECHA -->
+
+                <div class="topbar-date">
+
+                    <i class="fa-regular fa-calendar"></i>
+
+                    <span id="currentDate">
+                        Hoy
+                    </span>
+
+                </div>
+
+
+                <!-- NOTIFICACIONES -->
+
+                <button
+                    type="button"
+                    class="topbar-icon-btn"
+                    id="notificationBtn"
+                    aria-label="Notificaciones"
+                >
+
                     <i class="fa-regular fa-bell"></i>
-                    <span class="notification-dot"></span>
+
+                    <span
+                        class="notification-dot"
+                        id="notificationDot"
+                    ></span>
+
                 </button>
 
-                <div class="profile-mini">
+
+                <!-- PERFIL -->
+
+                <div class="topbar-user">
 
                     <div
-                        id="userAvatar"
-                        class="avatar"
+                        class="topbar-avatar"
+                        id="topbarAvatar"
                     >
                         A
                     </div>
 
-                    <div class="profile-info">
+                    <div class="topbar-user-info">
 
-                        <strong id="userName">
-                            Administrador
+                        <strong id="topbarUserName">
+                            Cargando...
                         </strong>
 
-                        <span id="userRole">
-                            Administrador
+                        <span id="topbarUserRole">
+                            Usuario
                         </span>
 
                     </div>
@@ -261,49 +601,64 @@
         </header>
 
 
-        <!-- =================================
+        <!-- =================================================
              CONTENT
-        ================================== -->
+        ================================================== -->
 
-        <section class="content">
+        <div class="content-wrapper">
 
-            <!-- DASHBOARD -->
 
-            <div
-                id="dashboardSection"
+            <!-- =================================================
+                 DASHBOARD
+            ================================================== -->
+
+            <section
+                id="section-dashboard"
                 class="page-section active"
+                data-page="dashboard"
             >
 
-                <div class="welcome">
+                <div class="section-header">
 
                     <div>
 
-                        <span class="eyebrow">
-                            RESUMEN FINANCIERO
+                        <span class="section-kicker">
+                            VISIÓN GENERAL
                         </span>
 
-                        <h1>
-                            Buenos días,
-                            <span id="welcomeName">
-                                Administrador
-                            </span>
-                            <span class="wave">👋</span>
-                        </h1>
+                        <h3>
+                            Resumen de tus finanzas
+                        </h3>
 
                         <p>
-                            Aquí tienes un resumen de tu situación
-                            financiera.
+                            Aquí tienes una vista general de tu
+                            situación financiera.
                         </p>
 
                     </div>
 
-                    <button
-                        id="quickAddBtn"
-                        class="primary-btn"
-                    >
-                        <i class="fa-solid fa-plus"></i>
-                        Registrar movimiento
-                    </button>
+
+                    <div class="section-actions">
+
+                        <button
+                            type="button"
+                            class="btn btn-secondary"
+                            id="refreshDashboardBtn"
+                        >
+                            <i class="fa-solid fa-rotate"></i>
+                            Actualizar
+                        </button>
+
+                        <button
+                            type="button"
+                            class="btn btn-primary"
+                            id="quickAddBtn"
+                        >
+                            <i class="fa-solid fa-plus"></i>
+                            Registrar movimiento
+                        </button>
+
+                    </div>
 
                 </div>
 
@@ -314,103 +669,258 @@
 
                     <article class="stat-card balance-card">
 
-                        <div class="stat-top">
+                        <div class="stat-card-top">
 
                             <div class="stat-icon">
                                 <i class="fa-solid fa-wallet"></i>
                             </div>
 
                             <span class="stat-label">
-                                Balance disponible
+                                BALANCE DISPONIBLE
                             </span>
 
                         </div>
 
-                        <div class="stat-value">
-                            S/ <span id="balanceValue">0.00</span>
+                        <div class="stat-value-row">
+
+                            <h3 id="balanceValue">
+                                S/ 0.00
+                            </h3>
+
+                            <span
+                                class="stat-trend positive"
+                                id="balanceTrend"
+                            >
+                                <i class="fa-solid fa-arrow-up"></i>
+                                0%
+                            </span>
+
                         </div>
 
-                        <div class="stat-footer positive">
-                            <i class="fa-solid fa-arrow-up"></i>
-                            <span>Balance actual</span>
-                        </div>
+                        <p class="stat-description">
+                            Balance actual
+                        </p>
 
                     </article>
 
 
-                    <article class="stat-card">
+                    <article class="stat-card income-card">
 
-                        <div class="stat-top">
+                        <div class="stat-card-top">
 
-                            <div class="stat-icon income">
+                            <div class="stat-icon">
                                 <i class="fa-solid fa-arrow-trend-up"></i>
                             </div>
 
                             <span class="stat-label">
-                                Ingresos
+                                INGRESOS
                             </span>
 
                         </div>
 
-                        <div class="stat-value">
-                            S/ <span id="incomeValue">0.00</span>
+                        <div class="stat-value-row">
+
+                            <h3 id="incomeValue">
+                                S/ 0.00
+                            </h3>
+
+                            <span
+                                class="stat-trend positive"
+                                id="incomeTrend"
+                            >
+                                <i class="fa-solid fa-arrow-up"></i>
+                                0%
+                            </span>
+
                         </div>
 
-                        <div class="stat-footer positive">
-                            <i class="fa-solid fa-arrow-up"></i>
-                            <span>Este mes</span>
-                        </div>
+                        <p class="stat-description">
+                            Total de ingresos registrados
+                        </p>
 
                     </article>
 
 
-                    <article class="stat-card">
+                    <article class="stat-card expense-card">
 
-                        <div class="stat-top">
+                        <div class="stat-card-top">
 
-                            <div class="stat-icon expense">
+                            <div class="stat-icon">
                                 <i class="fa-solid fa-arrow-trend-down"></i>
                             </div>
 
                             <span class="stat-label">
-                                Salidas
+                                SALIDAS
                             </span>
 
                         </div>
 
-                        <div class="stat-value">
-                            S/ <span id="expenseValue">0.00</span>
+                        <div class="stat-value-row">
+
+                            <h3 id="expenseValue">
+                                S/ 0.00
+                            </h3>
+
+                            <span
+                                class="stat-trend negative"
+                                id="expenseTrend"
+                            >
+                                <i class="fa-solid fa-arrow-down"></i>
+                                0%
+                            </span>
+
                         </div>
 
-                        <div class="stat-footer negative">
-                            <i class="fa-solid fa-arrow-down"></i>
-                            <span>Este mes</span>
+                        <p class="stat-description">
+                            Total de gastos registrados
+                        </p>
+
+                    </article>
+
+
+                    <article class="stat-card contribution-card">
+
+                        <div class="stat-card-top">
+
+                            <div class="stat-icon">
+                                <i class="fa-solid fa-hand-holding-dollar"></i>
+                            </div>
+
+                            <span class="stat-label">
+                                APORTES
+                            </span>
+
+                        </div>
+
+                        <div class="stat-value-row">
+
+                            <h3 id="contributionValue">
+                                S/ 0.00
+                            </h3>
+
+                            <span
+                                class="stat-trend positive"
+                                id="contributionTrend"
+                            >
+                                <i class="fa-solid fa-arrow-up"></i>
+                                0%
+                            </span>
+
+                        </div>
+
+                        <p class="stat-description">
+                            Total destinado a aportes
+                        </p>
+
+                    </article>
+
+                </div>
+
+
+                <!-- CHARTS -->
+
+                <div class="dashboard-grid">
+
+                    <article class="dashboard-card flow-card">
+
+                        <div class="card-header">
+
+                            <div>
+
+                                <span class="card-kicker">
+                                    MOVIMIENTO
+                                </span>
+
+                                <h3>
+                                    Flujo financiero
+                                </h3>
+
+                            </div>
+
+
+                            <div class="card-filter">
+
+                                <select id="flowPeriod">
+
+                                    <option value="month">
+                                        Este mes
+                                    </option>
+
+                                    <option value="3months">
+                                        Últimos 3 meses
+                                    </option>
+
+                                    <option value="year">
+                                        Este año
+                                    </option>
+
+                                </select>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="chart-container">
+
+                            <canvas id="flowChart"></canvas>
+
                         </div>
 
                     </article>
 
 
-                    <article class="stat-card">
+                    <article class="dashboard-card distribution-card">
 
-                        <div class="stat-top">
+                        <div class="card-header">
 
-                            <div class="stat-icon saving">
-                                <i class="fa-solid fa-piggy-bank"></i>
+                            <div>
+
+                                <span class="card-kicker">
+                                    DISTRIBUCIÓN
+                                </span>
+
+                                <h3>
+                                    Gastos por categoría
+                                </h3>
+
                             </div>
 
-                            <span class="stat-label">
-                                Aportes
-                            </span>
+                            <button
+                                type="button"
+                                class="card-menu-btn"
+                                aria-label="Opciones"
+                            >
+                                <i class="fa-solid fa-ellipsis"></i>
+                            </button>
 
                         </div>
 
-                        <div class="stat-value">
-                            S/ <span id="savingValue">0.00</span>
+
+                        <div class="donut-wrapper">
+
+                            <canvas id="expenseChart"></canvas>
+
+                            <div class="donut-center">
+
+                                <strong id="expenseChartTotal">
+                                    S/ 0
+                                </strong>
+
+                                <span>
+                                    Gastos
+                                </span>
+
+                            </div>
+
                         </div>
 
-                        <div class="stat-footer positive">
-                            <i class="fa-solid fa-arrow-up"></i>
-                            <span>Este mes</span>
+
+                        <div
+                            class="chart-legend"
+                            id="expenseLegend"
+                        >
+                            <!-- Generado por JS -->
                         </div>
 
                     </article>
@@ -418,42 +928,9 @@
                 </div>
 
 
-                <!-- CHART ROW -->
+                <!-- LOWER GRID -->
 
-                <div class="dashboard-grid">
-
-                    <article class="dashboard-card chart-card">
-
-                        <div class="card-header">
-
-                            <div>
-                                <span class="card-eyebrow">
-                                    MOVIMIENTOS
-                                </span>
-
-                                <h2>
-                                    Flujo financiero
-                                </h2>
-                            </div>
-
-                            <select id="chartPeriod">
-                                <option value="6">
-                                    Últimos 6 meses
-                                </option>
-
-                                <option value="12">
-                                    Últimos 12 meses
-                                </option>
-                            </select>
-
-                        </div>
-
-                        <div class="chart-container">
-                            <canvas id="financeChart"></canvas>
-                        </div>
-
-                    </article>
-
+                <div class="dashboard-grid lower-grid">
 
                     <!-- METAS -->
 
@@ -462,45 +939,95 @@
                         <div class="card-header">
 
                             <div>
-                                <span class="card-eyebrow">
+
+                                <span class="card-kicker">
                                     OBJETIVOS
                                 </span>
 
-                                <h2>
-                                    Mis metas
-                                </h2>
+                                <h3>
+                                    Tus metas
+                                </h3>
+
                             </div>
 
                             <button
-                                class="text-btn"
-                                data-section="metas"
+                                type="button"
+                                class="card-link"
+                                data-section-link="metas"
                             >
                                 Ver todas
+                                <i class="fa-solid fa-arrow-right"></i>
                             </button>
 
                         </div>
 
+
                         <div
-                            id="goalsPreview"
-                            class="goals-preview"
+                            class="goals-list"
+                            id="dashboardGoals"
                         >
 
-                            <div class="empty-state">
+                            <div class="empty-state small">
 
                                 <div class="empty-icon">
                                     <i class="fa-solid fa-bullseye"></i>
                                 </div>
 
                                 <p>
-                                    Todavía no tienes metas.
+                                    Todavía no tienes metas registradas.
                                 </p>
 
-                                <button
-                                    class="secondary-btn"
-                                    data-section="metas"
-                                >
-                                    Crear meta
-                                </button>
+                            </div>
+
+                        </div>
+
+                    </article>
+
+
+                    <!-- ACTIVIDAD -->
+
+                    <article class="dashboard-card activity-card">
+
+                        <div class="card-header">
+
+                            <div>
+
+                                <span class="card-kicker">
+                                    ACTIVIDAD
+                                </span>
+
+                                <h3>
+                                    Movimientos recientes
+                                </h3>
+
+                            </div>
+
+                            <button
+                                type="button"
+                                class="card-link"
+                                id="viewAllActivityBtn"
+                            >
+                                Ver todos
+                                <i class="fa-solid fa-arrow-right"></i>
+                            </button>
+
+                        </div>
+
+
+                        <div
+                            class="activity-list"
+                            id="recentActivity"
+                        >
+
+                            <div class="empty-state small">
+
+                                <div class="empty-icon">
+                                    <i class="fa-solid fa-receipt"></i>
+                                </div>
+
+                                <p>
+                                    No hay movimientos registrados.
+                                </p>
 
                             </div>
 
@@ -510,82 +1037,43 @@
 
                 </div>
 
-
-                <!-- RECENT ACTIVITY -->
-
-                <article class="dashboard-card activity-card">
-
-                    <div class="card-header">
-
-                        <div>
-                            <span class="card-eyebrow">
-                                ACTIVIDAD
-                            </span>
-
-                            <h2>
-                                Movimientos recientes
-                            </h2>
-                        </div>
-
-                        <button
-                            class="text-btn"
-                            data-section="reportes"
-                        >
-                            Ver todo
-                        </button>
-
-                    </div>
-
-                    <div
-                        id="recentActivity"
-                        class="activity-list"
-                    >
-
-                        <div class="empty-state">
-
-                            <div class="empty-icon">
-                                <i class="fa-solid fa-receipt"></i>
-                            </div>
-
-                            <p>
-                                No hay movimientos registrados.
-                            </p>
-
-                        </div>
-
-                    </div>
-
-                </article>
-
-            </div>
+            </section>
 
 
-            <!-- ===============================
-                 GENERIC SECTIONS
-            ================================= -->
+            <!-- =================================================
+                 INGRESOS
+            ================================================== -->
 
-            <div
-                id="ingresosSection"
+            <section
+                id="section-ingresos"
                 class="page-section"
+                data-page="ingresos"
+                hidden
             >
 
-                <div class="section-heading">
+                <div class="section-header">
 
                     <div>
-                        <span class="eyebrow">
+
+                        <span class="section-kicker">
                             FINANZAS
                         </span>
 
-                        <h1>Ingresos</h1>
+                        <h3>
+                            Ingresos
+                        </h3>
 
                         <p>
-                            Gestiona todas tus entradas de dinero.
+                            Registra y administra todo el dinero
+                            que recibes.
                         </p>
+
                     </div>
 
                     <button
-                        class="primary-btn"
-                        data-action="new-income"
+                        type="button"
+                        class="btn btn-primary"
+                        id="addIncomeBtn"
                     >
                         <i class="fa-solid fa-plus"></i>
                         Nuevo ingreso
@@ -593,288 +1081,84 @@
 
                 </div>
 
-                <div
-                    id="incomeList"
-                    class="data-card"
-                ></div>
 
-            </div>
+                <div class="module-card">
 
+                    <div class="module-toolbar">
 
-            <div
-                id="salidasSection"
-                class="page-section"
-            >
+                        <div class="search-box">
 
-                <div class="section-heading">
+                            <i class="fa-solid fa-magnifying-glass"></i>
 
-                    <div>
-                        <span class="eyebrow">
-                            FINANZAS
-                        </span>
+                            <input
+                                type="search"
+                                id="incomeSearch"
+                                placeholder="Buscar ingreso..."
+                            >
 
-                        <h1>Salidas</h1>
-
-                        <p>
-                            Controla tus gastos y salidas.
-                        </p>
-                    </div>
-
-                    <button
-                        class="primary-btn"
-                        data-action="new-expense"
-                    >
-                        <i class="fa-solid fa-plus"></i>
-                        Nueva salida
-                    </button>
-
-                </div>
-
-                <div
-                    id="expenseList"
-                    class="data-card"
-                ></div>
-
-            </div>
-
-
-            <div
-                id="aportesSection"
-                class="page-section"
-            >
-
-                <div class="section-heading">
-
-                    <div>
-                        <span class="eyebrow">
-                            AHORRO
-                        </span>
-
-                        <h1>Aportes</h1>
-
-                        <p>
-                            Administra tus aportes y ahorros.
-                        </p>
-                    </div>
-
-                    <button class="primary-btn">
-                        <i class="fa-solid fa-plus"></i>
-                        Nuevo aporte
-                    </button>
-
-                </div>
-
-                <div
-                    id="savingList"
-                    class="data-card"
-                ></div>
-
-            </div>
-
-
-            <div
-                id="otrosSection"
-                class="page-section"
-            >
-
-                <div class="section-heading">
-
-                    <div>
-                        <span class="eyebrow">
-                            FINANZAS
-                        </span>
-
-                        <h1>Otros</h1>
-
-                        <p>
-                            Registra movimientos adicionales.
-                        </p>
-                    </div>
-
-                    <button class="primary-btn">
-                        <i class="fa-solid fa-plus"></i>
-                        Nuevo movimiento
-                    </button>
-
-                </div>
-
-                <div
-                    id="otherList"
-                    class="data-card"
-                ></div>
-
-            </div>
-
-
-            <!-- METAS -->
-
-            <div
-                id="metasSection"
-                class="page-section"
-            >
-
-                <div class="section-heading">
-
-                    <div>
-                        <span class="eyebrow">
-                            PLANIFICACIÓN
-                        </span>
-
-                        <h1>Mis metas</h1>
-
-                        <p>
-                            Define objetivos y controla tu progreso.
-                        </p>
-
-                    </div>
-
-                    <button class="primary-btn">
-                        <i class="fa-solid fa-plus"></i>
-                        Nueva meta
-                    </button>
-
-                </div>
-
-                <div
-                    id="goalsList"
-                    class="goals-grid"
-                ></div>
-
-            </div>
-
-
-            <!-- REPORTES -->
-
-            <div
-                id="reportesSection"
-                class="page-section"
-            >
-
-                <div class="section-heading">
-
-                    <div>
-                        <span class="eyebrow">
-                            ANALÍTICA
-                        </span>
-
-                        <h1>Reportes</h1>
-
-                        <p>
-                            Analiza tu comportamiento financiero.
-                        </p>
-
-                    </div>
-
-                </div>
-
-                <div class="reports-grid">
-
-                    <div class="dashboard-card">
-                        <h2>Distribución de gastos</h2>
-
-                        <div class="chart-container small">
-                            <canvas id="expenseChart"></canvas>
                         </div>
-                    </div>
-
-                    <div class="dashboard-card">
-                        <h2>Resumen mensual</h2>
-
-                        <div id="monthlySummary"></div>
-                    </div>
-
-                </div>
-
-            </div>
 
 
-            <!-- USUARIOS ADMIN -->
+                        <div class="toolbar-filters">
 
-            <div
-                id="usuariosSection"
-                class="page-section"
-            >
+                            <select id="incomeCategoryFilter">
+                                <option value="">
+                                    Todas las categorías
+                                </option>
+                            </select>
 
-                <div class="section-heading">
+                            <input
+                                type="date"
+                                id="incomeDateFilter"
+                            >
 
-                    <div>
-
-                        <span class="eyebrow">
-                            ADMINISTRACIÓN
-                        </span>
-
-                        <h1>Usuarios</h1>
-
-                        <p>
-                            Administra las cuentas de FinanzasPersonales.
-                        </p>
+                        </div>
 
                     </div>
 
-                    <button
-                        id="newUserBtn"
-                        class="primary-btn"
-                    >
-                        <i class="fa-solid fa-user-plus"></i>
-                        Crear usuario
-                    </button>
 
-                </div>
+                    <div class="table-container">
 
-
-                <div class="users-toolbar">
-
-                    <div class="search-box">
-
-                        <i class="fa-solid fa-magnifying-glass"></i>
-
-                        <input
-                            type="text"
-                            id="userSearch"
-                            placeholder="Buscar usuario..."
-                        >
-
-                    </div>
-
-                    <select id="userStatusFilter">
-
-                        <option value="all">
-                            Todos
-                        </option>
-
-                        <option value="activo">
-                            Activos
-                        </option>
-
-                        <option value="inactivo">
-                            Inactivos
-                        </option>
-
-                    </select>
-
-                </div>
-
-
-                <div class="data-card">
-
-                    <div class="table-wrapper">
-
-                        <table>
+                        <table class="data-table">
 
                             <thead>
 
                                 <tr>
-                                    <th>Usuario</th>
-                                    <th>Email</th>
-                                    <th>Rol</th>
-                                    <th>Estado</th>
-                                    <th>Registro</th>
-                                    <th></th>
+                                    <th>Concepto</th>
+                                    <th>Categoría</th>
+                                    <th>Fecha</th>
+                                    <th>Monto</th>
+                                    <th>Acciones</th>
                                 </tr>
 
                             </thead>
 
-                            <tbody id="usersTableBody">
+                            <tbody id="incomeTableBody">
+
+                                <tr class="empty-table-row">
+
+                                    <td colspan="5">
+
+                                        <div class="empty-state">
+
+                                            <div class="empty-icon">
+                                                <i class="fa-solid fa-arrow-trend-up"></i>
+                                            </div>
+
+                                            <h4>
+                                                No hay ingresos
+                                            </h4>
+
+                                            <p>
+                                                Los ingresos que registres
+                                                aparecerán aquí.
+                                            </p>
+
+                                        </div>
+
+                                    </td>
+
+                                </tr>
 
                             </tbody>
 
@@ -884,99 +1168,1039 @@
 
                 </div>
 
-            </div>
+            </section>
 
 
-            <!-- CONFIG -->
+            <!-- =================================================
+                 SALIDAS
+            ================================================== -->
 
-            <div
-                id="configuracionSection"
+            <section
+                id="section-salidas"
                 class="page-section"
+                data-page="salidas"
+                hidden
             >
 
-                <div class="section-heading">
+                <div class="section-header">
 
                     <div>
 
-                        <span class="eyebrow">
-                            SISTEMA
+                        <span class="section-kicker">
+                            FINANZAS
                         </span>
 
-                        <h1>Configuración</h1>
+                        <h3>
+                            Salidas
+                        </h3>
 
                         <p>
-                            Personaliza tu experiencia.
+                            Controla tus gastos y salidas de dinero.
                         </p>
+
+                    </div>
+
+                    <button
+                        type="button"
+                        class="btn btn-primary"
+                        id="addExpenseBtn"
+                    >
+                        <i class="fa-solid fa-plus"></i>
+                        Nueva salida
+                    </button>
+
+                </div>
+
+
+                <div class="module-card">
+
+                    <div class="module-toolbar">
+
+                        <div class="search-box">
+
+                            <i class="fa-solid fa-magnifying-glass"></i>
+
+                            <input
+                                type="search"
+                                id="expenseSearch"
+                                placeholder="Buscar salida..."
+                            >
+
+                        </div>
+
+
+                        <div class="toolbar-filters">
+
+                            <select id="expenseCategoryFilter">
+                                <option value="">
+                                    Todas las categorías
+                                </option>
+                            </select>
+
+                            <select id="expensePaymentFilter">
+                                <option value="">
+                                    Todos los métodos
+                                </option>
+
+                                <option value="efectivo">
+                                    Efectivo
+                                </option>
+
+                                <option value="tarjeta">
+                                    Tarjeta
+                                </option>
+
+                                <option value="transferencia">
+                                    Transferencia
+                                </option>
+
+                                <option value="yape">
+                                    Yape
+                                </option>
+
+                                <option value="plin">
+                                    Plin
+                                </option>
+
+                            </select>
+
+                            <input
+                                type="date"
+                                id="expenseDateFilter"
+                            >
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="table-container">
+
+                        <table class="data-table">
+
+                            <thead>
+
+                                <tr>
+                                    <th>Concepto</th>
+                                    <th>Categoría</th>
+                                    <th>Método</th>
+                                    <th>Fecha</th>
+                                    <th>Monto</th>
+                                    <th>Acciones</th>
+                                </tr>
+
+                            </thead>
+
+                            <tbody id="expenseTableBody">
+
+                                <tr class="empty-table-row">
+
+                                    <td colspan="6">
+
+                                        <div class="empty-state">
+
+                                            <div class="empty-icon">
+                                                <i class="fa-solid fa-arrow-trend-down"></i>
+                                            </div>
+
+                                            <h4>
+                                                No hay salidas
+                                            </h4>
+
+                                            <p>
+                                                Los gastos que registres
+                                                aparecerán aquí.
+                                            </p>
+
+                                        </div>
+
+                                    </td>
+
+                                </tr>
+
+                            </tbody>
+
+                        </table>
 
                     </div>
 
                 </div>
 
-                <div class="settings-card">
+            </section>
 
-                    <div class="setting-row">
 
-                        <div>
+            <!-- =================================================
+                 APORTES
+            ================================================== -->
 
-                            <strong>
-                                Apariencia
-                            </strong>
+            <section
+                id="section-aportes"
+                class="page-section"
+                data-page="aportes"
+                hidden
+            >
 
-                            <span>
-                                Personaliza el aspecto de la aplicación.
-                            </span>
+                <div class="section-header">
+
+                    <div>
+
+                        <span class="section-kicker">
+                            FINANZAS
+                        </span>
+
+                        <h3>
+                            Aportes
+                        </h3>
+
+                        <p>
+                            Administra el dinero destinado a tus
+                            aportes y reservas.
+                        </p>
+
+                    </div>
+
+                    <button
+                        type="button"
+                        class="btn btn-primary"
+                        id="addContributionBtn"
+                    >
+                        <i class="fa-solid fa-plus"></i>
+                        Nuevo aporte
+                    </button>
+
+                </div>
+
+
+                <div class="module-card">
+
+                    <div class="module-toolbar">
+
+                        <div class="search-box">
+
+                            <i class="fa-solid fa-magnifying-glass"></i>
+
+                            <input
+                                type="search"
+                                id="contributionSearch"
+                                placeholder="Buscar aporte..."
+                            >
 
                         </div>
 
-                        <button
-                            id="themeToggle"
-                            class="secondary-btn"
+                        <input
+                            type="date"
+                            id="contributionDateFilter"
                         >
-                            <i class="fa-solid fa-moon"></i>
-                            Modo oscuro
+
+                    </div>
+
+
+                    <div class="table-container">
+
+                        <table class="data-table">
+
+                            <thead>
+
+                                <tr>
+                                    <th>Concepto</th>
+                                    <th>Tipo</th>
+                                    <th>Fecha</th>
+                                    <th>Monto</th>
+                                    <th>Acciones</th>
+                                </tr>
+
+                            </thead>
+
+                            <tbody id="contributionTableBody">
+
+                                <tr class="empty-table-row">
+
+                                    <td colspan="5">
+
+                                        <div class="empty-state">
+
+                                            <div class="empty-icon">
+                                                <i class="fa-solid fa-hand-holding-dollar"></i>
+                                            </div>
+
+                                            <h4>
+                                                No hay aportes
+                                            </h4>
+
+                                            <p>
+                                                Tus aportes aparecerán
+                                                registrados aquí.
+                                            </p>
+
+                                        </div>
+
+                                    </td>
+
+                                </tr>
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- =================================================
+                 OTROS
+            ================================================== -->
+
+            <section
+                id="section-otros"
+                class="page-section"
+                data-page="otros"
+                hidden
+            >
+
+                <div class="section-header">
+
+                    <div>
+
+                        <span class="section-kicker">
+                            FINANZAS
+                        </span>
+
+                        <h3>
+                            Otros movimientos
+                        </h3>
+
+                        <p>
+                            Registra movimientos que no pertenezcan
+                            a las categorías principales.
+                        </p>
+
+                    </div>
+
+                    <button
+                        type="button"
+                        class="btn btn-primary"
+                        id="addOtherBtn"
+                    >
+                        <i class="fa-solid fa-plus"></i>
+                        Nuevo movimiento
+                    </button>
+
+                </div>
+
+
+                <div class="module-card">
+
+                    <div class="module-toolbar">
+
+                        <div class="search-box">
+
+                            <i class="fa-solid fa-magnifying-glass"></i>
+
+                            <input
+                                type="search"
+                                id="otherSearch"
+                                placeholder="Buscar movimiento..."
+                            >
+
+                        </div>
+
+                        <input
+                            type="date"
+                            id="otherDateFilter"
+                        >
+
+                    </div>
+
+
+                    <div class="table-container">
+
+                        <table class="data-table">
+
+                            <thead>
+
+                                <tr>
+                                    <th>Concepto</th>
+                                    <th>Tipo</th>
+                                    <th>Fecha</th>
+                                    <th>Monto</th>
+                                    <th>Acciones</th>
+                                </tr>
+
+                            </thead>
+
+                            <tbody id="otherTableBody">
+
+                                <tr class="empty-table-row">
+
+                                    <td colspan="5">
+
+                                        <div class="empty-state">
+
+                                            <div class="empty-icon">
+                                                <i class="fa-solid fa-layer-group"></i>
+                                            </div>
+
+                                            <h4>
+                                                No hay movimientos
+                                            </h4>
+
+                                            <p>
+                                                Los movimientos adicionales
+                                                aparecerán aquí.
+                                            </p>
+
+                                        </div>
+
+                                    </td>
+
+                                </tr>
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- =================================================
+                 METAS
+            ================================================== -->
+
+            <section
+                id="section-metas"
+                class="page-section"
+                data-page="metas"
+                hidden
+            >
+
+                <div class="section-header">
+
+                    <div>
+
+                        <span class="section-kicker">
+                            PLANIFICACIÓN
+                        </span>
+
+                        <h3>
+                            Metas financieras
+                        </h3>
+
+                        <p>
+                            Define objetivos y controla cuánto
+                            te falta para alcanzarlos.
+                        </p>
+
+                    </div>
+
+                    <button
+                        type="button"
+                        class="btn btn-primary"
+                        id="addGoalBtn"
+                    >
+                        <i class="fa-solid fa-plus"></i>
+                        Nueva meta
+                    </button>
+
+                </div>
+
+
+                <div
+                    class="goals-page-grid"
+                    id="goalsPageGrid"
+                >
+
+                    <div class="empty-state">
+
+                        <div class="empty-icon">
+                            <i class="fa-solid fa-bullseye"></i>
+                        </div>
+
+                        <h4>
+                            Comienza creando una meta
+                        </h4>
+
+                        <p>
+                            Define cuánto quieres ahorrar y
+                            establece una fecha objetivo.
+                        </p>
+
+                        <button
+                            type="button"
+                            class="btn btn-primary"
+                            id="emptyGoalBtn"
+                        >
+                            <i class="fa-solid fa-plus"></i>
+                            Crear primera meta
                         </button>
 
                     </div>
 
                 </div>
 
-            </div>
+            </section>
 
-        </section>
+
+            <!-- =================================================
+                 REPORTES
+            ================================================== -->
+
+            <section
+                id="section-reportes"
+                class="page-section"
+                data-page="reportes"
+                hidden
+            >
+
+                <div class="section-header">
+
+                    <div>
+
+                        <span class="section-kicker">
+                            ANÁLISIS
+                        </span>
+
+                        <h3>
+                            Reportes financieros
+                        </h3>
+
+                        <p>
+                            Analiza el comportamiento de tus
+                            finanzas.
+                        </p>
+
+                    </div>
+
+                    <div class="section-actions">
+
+                        <button
+                            type="button"
+                            class="btn btn-secondary"
+                            id="reportPeriodBtn"
+                        >
+                            <i class="fa-regular fa-calendar"></i>
+                            Este mes
+                        </button>
+
+                        <button
+                            type="button"
+                            class="btn btn-primary"
+                            id="exportReportBtn"
+                        >
+                            <i class="fa-solid fa-download"></i>
+                            Exportar
+                        </button>
+
+                    </div>
+
+                </div>
+
+
+                <div class="reports-grid">
+
+                    <article class="report-card">
+
+                        <div class="report-card-icon">
+                            <i class="fa-solid fa-arrow-trend-up"></i>
+                        </div>
+
+                        <span>
+                            INGRESOS
+                        </span>
+
+                        <strong id="reportIncome">
+                            S/ 0.00
+                        </strong>
+
+                    </article>
+
+
+                    <article class="report-card">
+
+                        <div class="report-card-icon">
+                            <i class="fa-solid fa-arrow-trend-down"></i>
+                        </div>
+
+                        <span>
+                            SALIDAS
+                        </span>
+
+                        <strong id="reportExpenses">
+                            S/ 0.00
+                        </strong>
+
+                    </article>
+
+
+                    <article class="report-card">
+
+                        <div class="report-card-icon">
+                            <i class="fa-solid fa-piggy-bank"></i>
+                        </div>
+
+                        <span>
+                            AHORRO
+                        </span>
+
+                        <strong id="reportSavings">
+                            S/ 0.00
+                        </strong>
+
+                    </article>
+
+
+                    <article class="report-card">
+
+                        <div class="report-card-icon">
+                            <i class="fa-solid fa-bullseye"></i>
+                        </div>
+
+                        <span>
+                            METAS
+                        </span>
+
+                        <strong id="reportGoals">
+                            0
+                        </strong>
+
+                    </article>
+
+                </div>
+
+
+                <div class="dashboard-card report-chart-card">
+
+                    <div class="card-header">
+
+                        <div>
+
+                            <span class="card-kicker">
+                                EVOLUCIÓN
+                            </span>
+
+                            <h3>
+                                Ingresos vs. salidas
+                            </h3>
+
+                        </div>
+
+                    </div>
+
+                    <div class="chart-container large">
+
+                        <canvas id="reportChart"></canvas>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- =================================================
+                 USUARIOS — SOLO ADMIN
+            ================================================== -->
+
+            <section
+                id="section-usuarios"
+                class="page-section admin-only"
+                data-page="usuarios"
+                hidden
+            >
+
+                <div class="section-header">
+
+                    <div>
+
+                        <span class="section-kicker">
+                            ADMINISTRACIÓN
+                        </span>
+
+                        <h3>
+                            Gestión de usuarios
+                        </h3>
+
+                        <p>
+                            Crea y administra los usuarios
+                            de FinanzasPersonales.
+                        </p>
+
+                    </div>
+
+                    <button
+                        type="button"
+                        class="btn btn-primary"
+                        id="createUserBtn"
+                    >
+                        <i class="fa-solid fa-user-plus"></i>
+                        Crear usuario
+                    </button>
+
+                </div>
+
+
+                <div class="module-card">
+
+                    <div class="module-toolbar">
+
+                        <div class="search-box">
+
+                            <i class="fa-solid fa-magnifying-glass"></i>
+
+                            <input
+                                type="search"
+                                id="userSearch"
+                                placeholder="Buscar por nombre, usuario o email..."
+                            >
+
+                        </div>
+
+
+                        <div class="toolbar-filters">
+
+                            <select id="userStatusFilter">
+
+                                <option value="">
+                                    Todos los estados
+                                </option>
+
+                                <option value="activo">
+                                    Activos
+                                </option>
+
+                                <option value="inactivo">
+                                    Inactivos
+                                </option>
+
+                            </select>
+
+
+                            <select id="userRoleFilter">
+
+                                <option value="">
+                                    Todos los roles
+                                </option>
+
+                                <option value="admin">
+                                    Administradores
+                                </option>
+
+                                <option value="user">
+                                    Usuarios
+                                </option>
+
+                            </select>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="table-container">
+
+                        <table class="data-table users-table">
+
+                            <thead>
+
+                                <tr>
+
+                                    <th>
+                                        Usuario
+                                    </th>
+
+                                    <th>
+                                        Email
+                                    </th>
+
+                                    <th>
+                                        Rol
+                                    </th>
+
+                                    <th>
+                                        Moneda
+                                    </th>
+
+                                    <th>
+                                        Estado
+                                    </th>
+
+                                    <th>
+                                        Registro
+                                    </th>
+
+                                    <th>
+                                        Acciones
+                                    </th>
+
+                                </tr>
+
+                            </thead>
+
+                            <tbody id="usersTableBody">
+
+                                <tr class="empty-table-row">
+
+                                    <td colspan="7">
+
+                                        <div class="loading-state">
+
+                                            <i class="fa-solid fa-circle-notch fa-spin"></i>
+
+                                            <span>
+                                                Cargando usuarios...
+                                            </span>
+
+                                        </div>
+
+                                    </td>
+
+                                </tr>
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- =================================================
+                 CONFIGURACIÓN
+            ================================================== -->
+
+            <section
+                id="section-configuracion"
+                class="page-section"
+                data-page="configuracion"
+                hidden
+            >
+
+                <div class="section-header">
+
+                    <div>
+
+                        <span class="section-kicker">
+                            SISTEMA
+                        </span>
+
+                        <h3>
+                            Configuración
+                        </h3>
+
+                        <p>
+                            Personaliza tu experiencia en
+                            FinanzasPersonales.
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <div class="settings-grid">
+
+                    <article class="settings-card">
+
+                        <div class="settings-card-header">
+
+                            <div class="settings-icon">
+                                <i class="fa-solid fa-user"></i>
+                            </div>
+
+                            <div>
+
+                                <h4>
+                                    Perfil
+                                </h4>
+
+                                <p>
+                                    Información de tu cuenta.
+                                </p>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="settings-content">
+
+                            <div class="profile-setting">
+
+                                <label>
+                                    Nombre
+                                </label>
+
+                                <input
+                                    type="text"
+                                    id="settingsName"
+                                    placeholder="Nombre"
+                                >
+
+                            </div>
+
+
+                            <div class="profile-setting">
+
+                                <label>
+                                    Apellido
+                                </label>
+
+                                <input
+                                    type="text"
+                                    id="settingsLastName"
+                                    placeholder="Apellido"
+                                >
+
+                            </div>
+
+
+                            <div class="profile-setting">
+
+                                <label>
+                                    Email
+                                </label>
+
+                                <input
+                                    type="email"
+                                    id="settingsEmail"
+                                    placeholder="correo@email.com"
+                                    disabled
+                                >
+
+                            </div>
+
+
+                            <button
+                                type="button"
+                                class="btn btn-primary"
+                                id="saveProfileBtn"
+                            >
+                                Guardar cambios
+                            </button>
+
+                        </div>
+
+                    </article>
+
+
+                    <article class="settings-card">
+
+                        <div class="settings-card-header">
+
+                            <div class="settings-icon">
+                                <i class="fa-solid fa-coins"></i>
+                            </div>
+
+                            <div>
+
+                                <h4>
+                                    Moneda
+                                </h4>
+
+                                <p>
+                                    Selecciona la moneda principal.
+                                </p>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="settings-content">
+
+                            <label>
+                                Moneda principal
+                            </label>
+
+                            <select id="settingsCurrency">
+
+                                <option value="PEN">
+                                    PEN — Sol peruano
+                                </option>
+
+                                <option value="USD">
+                                    USD — Dólar estadounidense
+                                </option>
+
+                                <option value="EUR">
+                                    EUR — Euro
+                                </option>
+
+                            </select>
+
+
+                            <button
+                                type="button"
+                                class="btn btn-primary"
+                                id="saveCurrencyBtn"
+                            >
+                                Guardar moneda
+                            </button>
+
+                        </div>
+
+                    </article>
+
+                </div>
+
+            </section>
+
+        </div>
 
     </main>
 
 </div>
 
 
-<!-- =========================================
-     MODAL CREAR USUARIO
-========================================= -->
+<!-- =========================================================
+     MODAL — CREAR USUARIO
+========================================================== -->
 
 <div
-    id="userModal"
     class="modal-overlay"
+    id="createUserModal"
+    hidden
 >
 
-    <div class="modal">
+    <div
+        class="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="createUserModalTitle"
+    >
 
         <div class="modal-header">
 
             <div>
 
-                <span class="eyebrow">
+                <span class="modal-kicker">
                     ADMINISTRACIÓN
                 </span>
 
-                <h2>
-                    Crear usuario
-                </h2>
+                <h3 id="createUserModalTitle">
+                    Crear nuevo usuario
+                </h3>
+
+                <p>
+                    Crea una cuenta para un nuevo usuario.
+                </p>
 
             </div>
 
             <button
+                type="button"
                 class="modal-close"
-                id="closeUserModal"
+                id="closeCreateUserModal"
+                aria-label="Cerrar"
             >
                 <i class="fa-solid fa-xmark"></i>
             </button>
@@ -986,89 +2210,114 @@
 
         <form id="createUserForm">
 
-            <div class="form-grid">
+            <div class="modal-body">
 
-                <div class="form-group">
+                <div class="form-row">
 
-                    <label>
-                        Nombre
-                    </label>
+                    <div class="form-group">
 
-                    <input
-                        type="text"
-                        id="newNombre"
-                        required
-                        placeholder="Ej. Juan"
-                    >
+                        <label for="newUserName">
+                            Nombre
+                        </label>
+
+                        <input
+                            type="text"
+                            id="newUserName"
+                            name="nombre"
+                            placeholder="Ej. Juan"
+                            required
+                        >
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="newUserLastName">
+                            Apellido
+                        </label>
+
+                        <input
+                            type="text"
+                            id="newUserLastName"
+                            name="apellido"
+                            placeholder="Ej. Pérez"
+                        >
+
+                    </div>
 
                 </div>
 
 
                 <div class="form-group">
 
-                    <label>
-                        Apellido
-                    </label>
-
-                    <input
-                        type="text"
-                        id="newApellido"
-                        placeholder="Ej. Pérez"
-                    >
-
-                </div>
-
-
-                <div class="form-group">
-
-                    <label>
+                    <label for="newUserUsername">
                         Usuario
                     </label>
 
-                    <input
-                        type="text"
-                        id="newUsuario"
-                        placeholder="Ej. juanperez"
-                    >
+                    <div class="input-wrapper">
+
+                        <i class="fa-solid fa-at input-icon"></i>
+
+                        <input
+                            type="text"
+                            id="newUserUsername"
+                            name="usuario"
+                            placeholder="juanperez"
+                        >
+
+                    </div>
 
                 </div>
 
 
                 <div class="form-group">
 
-                    <label>
+                    <label for="newUserEmail">
                         Correo electrónico
                     </label>
 
-                    <input
-                        type="email"
-                        id="newEmail"
-                        required
-                        placeholder="usuario@email.com"
-                    >
+                    <div class="input-wrapper">
+
+                        <i class="fa-regular fa-envelope input-icon"></i>
+
+                        <input
+                            type="email"
+                            id="newUserEmail"
+                            name="email"
+                            placeholder="juan@email.com"
+                            required
+                        >
+
+                    </div>
 
                 </div>
 
 
-                <div class="form-group full">
+                <div class="form-group">
 
-                    <label>
+                    <label for="newUserPassword">
                         Contraseña
                     </label>
 
-                    <div class="password-field">
+                    <div class="input-wrapper">
+
+                        <i class="fa-solid fa-lock input-icon"></i>
 
                         <input
                             type="password"
-                            id="newPassword"
-                            required
-                            minlength="6"
+                            id="newUserPassword"
+                            name="password"
                             placeholder="Mínimo 6 caracteres"
+                            minlength="6"
+                            required
                         >
 
                         <button
                             type="button"
-                            id="togglePassword"
+                            class="password-toggle"
+                            id="toggleNewUserPassword"
+                            aria-label="Mostrar contraseña"
                         >
                             <i class="fa-regular fa-eye"></i>
                         </button>
@@ -1080,22 +2329,25 @@
 
                 <div class="form-group">
 
-                    <label>
+                    <label for="newUserCurrency">
                         Moneda
                     </label>
 
-                    <select id="newMoneda">
+                    <select
+                        id="newUserCurrency"
+                        name="moneda"
+                    >
 
                         <option value="PEN">
-                            Sol peruano — PEN
+                            PEN — Sol peruano
                         </option>
 
                         <option value="USD">
-                            Dólar — USD
+                            USD — Dólar estadounidense
                         </option>
 
                         <option value="EUR">
-                            Euro — EUR
+                            EUR — Euro
                         </option>
 
                     </select>
@@ -1105,26 +2357,20 @@
             </div>
 
 
-            <div
-                id="userFormMessage"
-                class="form-message"
-            ></div>
-
-
-            <div class="modal-actions">
+            <div class="modal-footer">
 
                 <button
                     type="button"
-                    id="cancelUserModal"
-                    class="secondary-btn"
+                    class="btn btn-secondary"
+                    id="cancelCreateUser"
                 >
                     Cancelar
                 </button>
 
                 <button
                     type="submit"
-                    class="primary-btn"
-                    id="createUserBtn"
+                    class="btn btn-primary"
+                    id="saveNewUserBtn"
                 >
                     <i class="fa-solid fa-user-plus"></i>
                     Crear usuario
@@ -1139,23 +2385,606 @@
 </div>
 
 
-<!-- TOAST -->
+<!-- =========================================================
+     MODAL — MOVIMIENTO RÁPIDO
+========================================================== -->
 
 <div
-    id="toast"
-    class="toast"
+    class="modal-overlay"
+    id="quickAddModal"
+    hidden
 >
 
-    <i class="fa-solid fa-circle-check"></i>
+    <div
+        class="modal modal-small"
+        role="dialog"
+        aria-modal="true"
+    >
 
-    <span id="toastMessage">
-        Operación realizada.
-    </span>
+        <div class="modal-header">
+
+            <div>
+
+                <span class="modal-kicker">
+                    MOVIMIENTO
+                </span>
+
+                <h3>
+                    Registrar movimiento
+                </h3>
+
+                <p>
+                    Selecciona el tipo de movimiento.
+                </p>
+
+            </div>
+
+            <button
+                type="button"
+                class="modal-close"
+                id="closeQuickAddModal"
+                aria-label="Cerrar"
+            >
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+        </div>
+
+
+        <div class="quick-actions">
+
+            <button
+                type="button"
+                class="quick-action income"
+                data-quick-type="ingreso"
+            >
+
+                <span class="quick-action-icon">
+                    <i class="fa-solid fa-arrow-trend-up"></i>
+                </span>
+
+                <span>
+                    <strong>Ingreso</strong>
+                    <small>Dinero recibido</small>
+                </span>
+
+                <i class="fa-solid fa-chevron-right"></i>
+
+            </button>
+
+
+            <button
+                type="button"
+                class="quick-action expense"
+                data-quick-type="salida"
+            >
+
+                <span class="quick-action-icon">
+                    <i class="fa-solid fa-arrow-trend-down"></i>
+                </span>
+
+                <span>
+                    <strong>Salida</strong>
+                    <small>Gasto realizado</small>
+                </span>
+
+                <i class="fa-solid fa-chevron-right"></i>
+
+            </button>
+
+
+            <button
+                type="button"
+                class="quick-action contribution"
+                data-quick-type="aporte"
+            >
+
+                <span class="quick-action-icon">
+                    <i class="fa-solid fa-hand-holding-dollar"></i>
+                </span>
+
+                <span>
+                    <strong>Aporte</strong>
+                    <small>Dinero destinado</small>
+                </span>
+
+                <i class="fa-solid fa-chevron-right"></i>
+
+            </button>
+
+
+            <button
+                type="button"
+                class="quick-action other"
+                data-quick-type="otro"
+            >
+
+                <span class="quick-action-icon">
+                    <i class="fa-solid fa-layer-group"></i>
+                </span>
+
+                <span>
+                    <strong>Otro</strong>
+                    <small>Otro movimiento</small>
+                </span>
+
+                <i class="fa-solid fa-chevron-right"></i>
+
+            </button>
+
+        </div>
+
+    </div>
 
 </div>
 
 
+<!-- =========================================================
+     MODAL — GENERAR MOVIMIENTO
+========================================================== -->
+
+<div
+    class="modal-overlay"
+    id="transactionModal"
+    hidden
+>
+
+    <div
+        class="modal"
+        role="dialog"
+        aria-modal="true"
+    >
+
+        <div class="modal-header">
+
+            <div>
+
+                <span
+                    class="modal-kicker"
+                    id="transactionModalKicker"
+                >
+                    FINANZAS
+                </span>
+
+                <h3 id="transactionModalTitle">
+                    Nuevo movimiento
+                </h3>
+
+                <p id="transactionModalDescription">
+                    Registra un nuevo movimiento financiero.
+                </p>
+
+            </div>
+
+            <button
+                type="button"
+                class="modal-close"
+                id="closeTransactionModal"
+                aria-label="Cerrar"
+            >
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+        </div>
+
+
+        <form id="transactionForm">
+
+            <div class="modal-body">
+
+                <input
+                    type="hidden"
+                    id="transactionType"
+                >
+
+
+                <div class="form-group">
+
+                    <label for="transactionConcept">
+                        Concepto
+                    </label>
+
+                    <input
+                        type="text"
+                        id="transactionConcept"
+                        placeholder="Ej. Sueldo, comida, ahorro..."
+                        required
+                    >
+
+                </div>
+
+
+                <div class="form-row">
+
+                    <div class="form-group">
+
+                        <label for="transactionAmount">
+                            Monto
+                        </label>
+
+                        <div class="money-input">
+
+                            <span>
+                                S/
+                            </span>
+
+                            <input
+                                type="number"
+                                id="transactionAmount"
+                                min="0.01"
+                                step="0.01"
+                                placeholder="0.00"
+                                required
+                            >
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="transactionDate">
+                            Fecha
+                        </label>
+
+                        <input
+                            type="date"
+                            id="transactionDate"
+                            required
+                        >
+
+                    </div>
+
+                </div>
+
+
+                <div
+                    class="form-group"
+                    id="transactionCategoryGroup"
+                >
+
+                    <label for="transactionCategory">
+                        Categoría
+                    </label>
+
+                    <input
+                        type="text"
+                        id="transactionCategory"
+                        placeholder="Ej. Alimentación"
+                    >
+
+                </div>
+
+
+                <div
+                    class="form-group"
+                    id="transactionPaymentGroup"
+                    hidden
+                >
+
+                    <label for="transactionPayment">
+                        Método de pago
+                    </label>
+
+                    <select id="transactionPayment">
+
+                        <option value="">
+                            Selecciona un método
+                        </option>
+
+                        <option value="efectivo">
+                            Efectivo
+                        </option>
+
+                        <option value="tarjeta">
+                            Tarjeta
+                        </option>
+
+                        <option value="transferencia">
+                            Transferencia
+                        </option>
+
+                        <option value="yape">
+                            Yape
+                        </option>
+
+                        <option value="plin">
+                            Plin
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <div
+                    class="form-group"
+                    id="transactionTypeGroup"
+                    hidden
+                >
+
+                    <label for="transactionSubType">
+                        Tipo
+                    </label>
+
+                    <input
+                        type="text"
+                        id="transactionSubType"
+                        placeholder="Ej. Ahorro, inversión..."
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="transactionDescription">
+                        Descripción
+                        <span class="optional">
+                            Opcional
+                        </span>
+                    </label>
+
+                    <textarea
+                        id="transactionDescription"
+                        rows="3"
+                        placeholder="Agrega una descripción..."
+                    ></textarea>
+
+                </div>
+
+            </div>
+
+
+            <div class="modal-footer">
+
+                <button
+                    type="button"
+                    class="btn btn-secondary"
+                    id="cancelTransaction"
+                >
+                    Cancelar
+                </button>
+
+                <button
+                    type="submit"
+                    class="btn btn-primary"
+                    id="saveTransactionBtn"
+                >
+                    <i class="fa-solid fa-check"></i>
+                    Guardar movimiento
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+
+<!-- =========================================================
+     MODAL — NUEVA META
+========================================================== -->
+
+<div
+    class="modal-overlay"
+    id="goalModal"
+    hidden
+>
+
+    <div
+        class="modal"
+        role="dialog"
+        aria-modal="true"
+    >
+
+        <div class="modal-header">
+
+            <div>
+
+                <span class="modal-kicker">
+                    PLANIFICACIÓN
+                </span>
+
+                <h3>
+                    Nueva meta financiera
+                </h3>
+
+                <p>
+                    Define el objetivo que quieres alcanzar.
+                </p>
+
+            </div>
+
+            <button
+                type="button"
+                class="modal-close"
+                id="closeGoalModal"
+                aria-label="Cerrar"
+            >
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+        </div>
+
+
+        <form id="goalForm">
+
+            <div class="modal-body">
+
+                <div class="form-group">
+
+                    <label for="goalName">
+                        Nombre de la meta
+                    </label>
+
+                    <input
+                        type="text"
+                        id="goalName"
+                        placeholder="Ej. Comprar una laptop"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="form-row">
+
+                    <div class="form-group">
+
+                        <label for="goalTarget">
+                            Objetivo
+                        </label>
+
+                        <div class="money-input">
+
+                            <span>
+                                S/
+                            </span>
+
+                            <input
+                                type="number"
+                                id="goalTarget"
+                                min="0.01"
+                                step="0.01"
+                                placeholder="0.00"
+                                required
+                            >
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="goalCurrent">
+                            Monto actual
+                        </label>
+
+                        <div class="money-input">
+
+                            <span>
+                                S/
+                            </span>
+
+                            <input
+                                type="number"
+                                id="goalCurrent"
+                                min="0"
+                                step="0.01"
+                                value="0"
+                            >
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="form-row">
+
+                    <div class="form-group">
+
+                        <label for="goalDate">
+                            Fecha objetivo
+                        </label>
+
+                        <input
+                            type="date"
+                            id="goalDate"
+                        >
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label for="goalCategory">
+                            Categoría
+                        </label>
+
+                        <input
+                            type="text"
+                            id="goalCategory"
+                            placeholder="Ej. Ahorro"
+                        >
+
+                    </div>
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="goalDescription">
+                        Descripción
+                        <span class="optional">
+                            Opcional
+                        </span>
+                    </label>
+
+                    <textarea
+                        id="goalDescription"
+                        rows="3"
+                        placeholder="Describe tu objetivo..."
+                    ></textarea>
+
+                </div>
+
+            </div>
+
+
+            <div class="modal-footer">
+
+                <button
+                    type="button"
+                    class="btn btn-secondary"
+                    id="cancelGoal"
+                >
+                    Cancelar
+                </button>
+
+                <button
+                    type="submit"
+                    class="btn btn-primary"
+                    id="saveGoalBtn"
+                >
+                    <i class="fa-solid fa-bullseye"></i>
+                    Crear meta
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+
+<!-- =========================================================
+     TOAST / NOTIFICACIONES
+========================================================== -->
+
+<div
+    id="toastContainer"
+    class="toast-container"
+    aria-live="polite"
+    aria-atomic="true"
+></div>
+
+
+<!-- =========================================================
+     JAVASCRIPT
+========================================================== -->
+
 <script src="app.js"></script>
+```
 
 </body>
 </html>
