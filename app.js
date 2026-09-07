@@ -1,12 +1,10 @@
 /* =========================================================
-FINANZASPERSONALES
-APP.JS
-Login + Supabase + Roles + Dashboard + Admin
-========================================================= */
+   FINANZASPERSONALES
+   app.js
+   ========================================================= */
 
 /* =========================================================
-
-1. CONFIGURACIÓN SUPABASE
+   1. CONFIGURACIÓN SUPABASE
    ========================================================= */
 
 const SUPABASE_URL = "https://xwkxgrktsdejoaqnbiwk.supabase.co";
@@ -15,28 +13,31 @@ const SUPABASE_ANON_KEY = "sb_publishable_DYl24WF6mNud6QsS4nhhYA_53ohH191";
 let supabaseClient = null;
 
 if (
-window.supabase &&
-SUPABASE_URL !== "https://xwkxgrktsdejoaqnbiwk.supabase.co" &&
-SUPABASE_ANON_KEY !== "sb_publishable_DYl24WF6mNud6QsS4nhhYA_53ohH191"
+    window.supabase &&
+    SUPABASE_URL &&
+    SUPABASE_ANON_KEY &&
+    SUPABASE_ANON_KEY !== "sb_publishable_DYl24WF6mNud6QsS4nhhYA_53ohH191"
 ) {
-supabaseClient = window.supabase.createClient(
-SUPABASE_URL,
-SUPABASE_ANON_KEY
-);
+    try {
+        supabaseClient = window.supabase.createClient(
+            SUPABASE_URL,
+            SUPABASE_ANON_KEY
+        );
 
-```
-console.log("✅ Supabase conectado correctamente");
-```
-
+        console.log("✅ Supabase conectado correctamente");
+    } catch (error) {
+        console.error("❌ Error inicializando Supabase:", error);
+    }
 } else {
-console.error(
-"❌ Configura SUPABASE_URL y SUPABASE_ANON_KEY en app.js"
-);
+    console.warn(
+        "⚠️ Supabase no está configurado. Revisa SUPABASE_URL y SUPABASE_ANON_KEY."
+    );
 }
 
+
 /* =========================================================
-2. VARIABLES GLOBALES
-========================================================= */
+   2. VARIABLES GLOBALES
+   ========================================================= */
 
 let currentUser = null;
 let currentProfile = null;
@@ -46,242 +47,168 @@ let expenseChart = null;
 
 let allUsers = [];
 
+
 /* =========================================================
-3. ELEMENTOS DOM
-========================================================= */
+   3. ELEMENTOS DEL DOM
+   ========================================================= */
 
-const loginScreen = document.getElementById("loginScreen");
-const appContainer = document.getElementById("appContainer");
+const loginScreen = document.getElementById("login-screen");
+const appContainer = document.getElementById("app-container");
 
-const loginForm = document.getElementById("loginForm");
-const loginEmail = document.getElementById("loginEmail");
-const loginPassword = document.getElementById("loginPassword");
+const loginForm = document.getElementById("login-form");
+const loginEmail = document.getElementById("login-email");
+const loginPassword = document.getElementById("login-password");
 
-const passwordToggle = document.getElementById("passwordToggle");
+const passwordToggle = document.getElementById("password-toggle");
 
-const logoutBtn = document.getElementById("logoutBtn");
+const logoutButton = document.getElementById("logout-btn");
 
 const sidebar = document.getElementById("sidebar");
-const sidebarOverlay = document.getElementById("sidebarOverlay");
-const mobileMenuBtn = document.getElementById("mobileMenuBtn");
-const sidebarClose = document.getElementById("sidebarClose");
+const sidebarOverlay = document.getElementById("sidebar-overlay");
 
-const navItems = document.querySelectorAll(".nav-item");
+const mobileMenuButton = document.getElementById("mobile-menu-btn");
+const sidebarCloseButton = document.getElementById("sidebar-close");
+
+const navItems = document.querySelectorAll("[data-section]");
+
 const pageSections = document.querySelectorAll(".page-section");
 
-const toastContainer = document.getElementById("toastContainer");
+const toastContainer =
+    document.getElementById("toast-container") ||
+    document.getElementById("toast");
+
+const modalOverlay = document.getElementById("modal-overlay");
+
 
 /* =========================================================
-4. INICIO
-========================================================= */
+   4. INICIALIZACIÓN
+   ========================================================= */
 
 document.addEventListener("DOMContentLoaded", async () => {
+    console.log("🚀 FinanzasPersonales - JavaScript cargado correctamente");
 
-```
-console.log(
-    "🚀 FinanzasPersonales - JavaScript cargado correctamente"
-);
+    initializeUI();
 
-initializeUI();
+    if (!supabaseClient) {
+        console.error("❌ Supabase no está disponible.");
+        showToast(
+            "No se pudo conectar con la base de datos.",
+            "error"
+        );
+        return;
+    }
 
-if (!supabaseClient) {
-    showToast(
-        "error",
-        "Configuración pendiente",
-        "Debes configurar las credenciales de Supabase en app.js."
-    );
-
-    return;
-}
-
-await checkSession();
-```
-
+    await checkSession();
 });
 
+
 /* =========================================================
-5. INICIALIZAR UI
-========================================================= */
+   5. CONFIGURACIÓN GENERAL DE LA INTERFAZ
+   ========================================================= */
 
 function initializeUI() {
+    setupLogin();
+    setupNavigation();
+    setupSidebar();
+    setupPasswordToggle();
+    setupLogout();
+    setupThemeToggle();
+    setupModalEvents();
+    setupQuickActions();
+    setupUserSearch();
+    setupUserFilters();
+    setupPasswordGenerator();
+    setupEscapeKey();
 
-```
-setupLogin();
-
-setupNavigation();
-
-setupSidebar();
-
-setupPasswordToggle();
-
-setupLogout();
-
-setupThemeToggle();
-
-setupModalEvents();
-
-setupQuickActions();
-
-setupUserSearch();
-
-setupUserFilters();
-
-setupPasswordGenerator();
-```
-
+    console.log("✅ Interfaz inicializada");
 }
 
+
 /* =========================================================
-6. SESIÓN
-========================================================= */
+   6. AUTENTICACIÓN
+   ========================================================= */
 
 async function checkSession() {
-
-```
-if (!supabaseClient) {
-    showLogin();
-    return;
-}
-
-try {
-
-    const {
-        data,
-        error
-    } = await supabaseClient.auth.getSession();
-
-    if (error) {
-        console.error(
-            "Error obteniendo sesión:",
+    try {
+        const {
+            data: { session },
             error
-        );
+        } = await supabaseClient.auth.getSession();
 
-        showLogin();
-        return;
-    }
-
-    if (!data.session) {
-
-        console.log(
-            "ℹ️ No existe una sesión activa."
-        );
-
-        showLogin();
-        return;
-    }
-
-    currentUser = data.session.user;
-
-    console.log(
-        "✅ Sesión encontrada:",
-        currentUser.email
-    );
-
-    await initializeAuthenticatedApp();
-
-} catch (error) {
-
-    console.error(
-        "❌ Error verificando sesión:",
-        error
-    );
-
-    showLogin();
-}
-```
-
-}
-
-/* =========================================================
-7. CAMBIOS DE AUTENTICACIÓN
-========================================================= */
-
-if (supabaseClient) {
-
-```
-supabaseClient.auth.onAuthStateChange(
-    async (event, session) => {
-
-        console.log(
-            "🔐 Auth event:",
-            event
-        );
-
-        if (
-            event === "SIGNED_IN" &&
-            session
-        ) {
-
-            currentUser = session.user;
-
-            await initializeAuthenticatedApp();
-        }
-
-        if (event === "SIGNED_OUT") {
-
-            currentUser = null;
-            currentProfile = null;
-
+        if (error) {
+            console.error("❌ Error obteniendo sesión:", error);
             showLogin();
-        }
-
-    }
-);
-```
-
-}
-
-/* =========================================================
-8. LOGIN
-========================================================= */
-
-function setupLogin() {
-
-```
-if (!loginForm) return;
-
-loginForm.addEventListener(
-    "submit",
-    async (event) => {
-
-        event.preventDefault();
-
-        if (!supabaseClient) {
-
-            showToast(
-                "error",
-                "Supabase no configurado",
-                "Configura las credenciales en app.js."
-            );
-
             return;
         }
 
-        const email =
-            loginEmail.value.trim();
+        if (session?.user) {
+            currentUser = session.user;
 
-        const password =
-            loginPassword.value;
+            console.log("👤 Sesión encontrada:", currentUser.email);
+
+            await initializeAuthenticatedApp();
+        } else {
+            showLogin();
+        }
+    } catch (error) {
+        console.error("❌ Error verificando sesión:", error);
+        showLogin();
+    }
+}
+
+
+/* =========================================================
+   7. LISTENER DE CAMBIOS DE AUTENTICACIÓN
+   ========================================================= */
+
+if (window.supabase) {
+    window.supabase.auth.onAuthStateChange(
+        async (event, session) => {
+            console.log("🔐 Cambio de autenticación:", event);
+
+            if (event === "SIGNED_IN" && session?.user) {
+                currentUser = session.user;
+                await initializeAuthenticatedApp();
+            }
+
+            if (event === "SIGNED_OUT") {
+                currentUser = null;
+                currentProfile = null;
+
+                showLogin();
+            }
+        }
+    );
+}
+
+
+/* =========================================================
+   8. LOGIN
+   ========================================================= */
+
+function setupLogin() {
+    if (!loginForm) {
+        console.warn("⚠️ No se encontró #login-form");
+        return;
+    }
+
+    loginForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+
+        const email = loginEmail?.value.trim();
+        const password = loginPassword?.value;
 
         if (!email || !password) {
-
             showToast(
-                "warning",
-                "Campos incompletos",
-                "Ingresa tu correo y contraseña."
+                "Ingresa tu correo y contraseña.",
+                "warning"
             );
-
             return;
         }
 
         setLoginLoading(true);
 
         try {
-
-            console.log(
-                "🔐 Intentando iniciar sesión..."
-            );
-
             const {
                 data,
                 error
@@ -291,3108 +218,2481 @@ loginForm.addEventListener(
             });
 
             if (error) {
-
-                console.error(
-                    "Error login:",
-                    error
-                );
+                console.error("❌ Error de login:", error);
 
                 showToast(
-                    "error",
-                    "No se pudo iniciar sesión",
-                    getFriendlyAuthError(error)
+                    getFriendlyAuthError(error),
+                    "error"
                 );
 
                 return;
             }
 
-            if (!data.user) {
-
-                showToast(
-                    "error",
-                    "Error",
-                    "No se pudo obtener el usuario."
-                );
-
-                return;
-            }
-
-            currentUser =
-                data.user;
+            currentUser = data.user;
 
             console.log(
-                "✅ Login correcto:",
+                "✅ Inicio de sesión exitoso:",
                 currentUser.email
             );
 
             await initializeAuthenticatedApp();
 
         } catch (error) {
-
-            console.error(
-                "❌ Error inesperado:",
-                error
-            );
+            console.error("❌ Error inesperado:", error);
 
             showToast(
-                "error",
-                "Error inesperado",
-                "Ocurrió un problema al iniciar sesión."
+                "Ocurrió un error al iniciar sesión.",
+                "error"
             );
-
         } finally {
-
             setLoginLoading(false);
         }
-
-    }
-);
-```
-
+    });
 }
 
+
 /* =========================================================
-9. INICIALIZAR APP AUTENTICADA
-========================================================= */
+   9. INICIALIZAR APLICACIÓN AUTENTICADA
+   ========================================================= */
 
 async function initializeAuthenticatedApp() {
-
-```
-if (!currentUser) return;
-
-try {
+    if (!currentUser) {
+        showLogin();
+        return;
+    }
 
     showLoadingApp();
 
-    const profile =
-        await loadCurrentProfile();
-
-    if (!profile) {
-
-        console.error(
-            "❌ No existe perfil para el usuario."
-        );
-
-        await supabaseClient.auth.signOut();
-
-        showToast(
-            "error",
-            "Perfil no encontrado",
-            "Tu usuario existe, pero no tiene un perfil registrado."
-        );
-
-        showLogin();
-
-        return;
-    }
-
-    currentProfile =
-        profile;
-
-    console.log(
-        "👤 Perfil:",
-        currentProfile
-    );
-
-    if (
-        currentProfile.estado &&
-        currentProfile.estado !== "activo"
-    ) {
-
-        await supabaseClient.auth.signOut();
-
-        showToast(
-            "error",
-            "Cuenta inactiva",
-            "Tu cuenta se encuentra desactivada."
-        );
-
-        showLogin();
-
-        return;
-    }
-
-    updateUserInterface();
-
-    showApp();
-
-    await loadDashboard();
-
-    if (currentProfile.rol === "admin") {
-
-        console.log(
-            "👑 Usuario administrador"
-        );
-
-        await loadUsers();
-
-    } else {
-
-        console.log(
-            "👤 Usuario normal"
-        );
-    }
-
-    showSection("dashboard");
-
-} catch (error) {
-
-    console.error(
-        "❌ Error inicializando aplicación:",
-        error
-    );
-
-    showToast(
-        "error",
-        "Error de inicialización",
-        error.message ||
-        "No se pudo cargar la aplicación."
-    );
-}
-```
-
-}
-
-/* =========================================================
-10. CARGAR PERFIL
-========================================================= */
-
-async function loadCurrentProfile() {
-
-```
-if (!currentUser) return null;
-
-const {
-    data,
-    error
-} = await supabaseClient
-    .from("profiles")
-    .select(`
-        id,
-        nombre,
-        apellido,
-        email,
-        usuario,
-        rol,
-        estado,
-        moneda,
-        avatar_url
-    `)
-    .eq("id", currentUser.id)
-    .single();
-
-if (error) {
-
-    console.error(
-        "❌ Error cargando perfil:",
-        error
-    );
-
-    return null;
-}
-
-return data;
-```
-
-}
-
-/* =========================================================
-11. ACTUALIZAR INTERFAZ SEGÚN USUARIO
-========================================================= */
-
-function updateUserInterface() {
-
-```
-if (!currentProfile) return;
-
-const nombre =
-    currentProfile.nombre ||
-    currentProfile.usuario ||
-    "Usuario";
-
-const apellido =
-    currentProfile.apellido ||
-    "";
-
-const fullName =
-    `${nombre} ${apellido}`.trim();
-
-const initials =
-    getInitials(
-        nombre,
-        apellido
-    );
-
-const role =
-    currentProfile.rol === "admin"
-        ? "Administrador"
-        : "Usuario";
-
-document
-    .querySelectorAll("[data-user-name]")
-    .forEach(element => {
-
-        element.textContent =
-            fullName;
-    });
-
-document
-    .querySelectorAll("[data-user-role]")
-    .forEach(element => {
-
-        element.textContent =
-            role;
-    });
-
-document
-    .querySelectorAll("[data-user-email]")
-    .forEach(element => {
-
-        element.textContent =
-            currentProfile.email ||
-            currentUser?.email ||
-            "";
-    });
-
-document
-    .querySelectorAll("[data-user-initials]")
-    .forEach(element => {
-
-        element.textContent =
-            initials;
-    });
-
-const adminMenu =
-    document.getElementById(
-        "adminMenu"
-    );
-
-if (adminMenu) {
-
-    adminMenu.hidden =
-        currentProfile.rol !== "admin";
-}
-
-const welcomeName =
-    document.getElementById(
-        "welcomeName"
-    );
-
-if (welcomeName) {
-
-    welcomeName.textContent =
-        nombre;
-}
-
-const accountRole =
-    document.getElementById(
-        "accountRole"
-    );
-
-if (accountRole) {
-
-    accountRole.textContent =
-        role;
-}
-```
-
-}
-
-/* =========================================================
-12. MOSTRAR / OCULTAR LOGIN
-========================================================= */
-
-function showLogin() {
-
-```
-if (loginScreen) {
-
-    loginScreen.hidden = false;
-}
-
-if (appContainer) {
-
-    appContainer.hidden = true;
-}
-
-document.body.classList.remove(
-    "app-loaded"
-);
-```
-
-}
-
-function showApp() {
-
-```
-if (loginScreen) {
-
-    loginScreen.hidden = true;
-}
-
-if (appContainer) {
-
-    appContainer.hidden = false;
-}
-
-document.body.classList.add(
-    "app-loaded"
-);
-```
-
-}
-
-function showLoadingApp() {
-
-```
-if (loginScreen) {
-
-    loginScreen.hidden = true;
-}
-
-if (appContainer) {
-
-    appContainer.hidden = false;
-}
-```
-
-}
-
-/* =========================================================
-13. LOGIN LOADING
-========================================================= */
-
-function setLoginLoading(loading) {
-
-```
-const button =
-    document.getElementById(
-        "loginSubmit"
-    );
-
-if (!button) return;
-
-const normalText =
-    button.querySelector(
-        ".login-submit-text"
-    );
-
-const loadingText =
-    button.querySelector(
-        ".login-submit-loading"
-    );
-
-button.disabled =
-    loading;
-
-if (normalText) {
-
-    normalText.hidden =
-        loading;
-}
-
-if (loadingText) {
-
-    loadingText.hidden =
-        !loading;
-}
-```
-
-}
-
-/* =========================================================
-14. PASSWORD
-========================================================= */
-
-function setupPasswordToggle() {
-
-```
-if (!passwordToggle || !loginPassword) {
-    return;
-}
-
-passwordToggle.addEventListener(
-    "click",
-    () => {
-
-        const isPassword =
-            loginPassword.type ===
-            "password";
-
-        loginPassword.type =
-            isPassword
-                ? "text"
-                : "password";
-
-        const icon =
-            passwordToggle.querySelector(
-                "i"
+    try {
+        const profileLoaded = await loadCurrentProfile();
+
+        if (!profileLoaded) {
+            await supabaseClient.auth.signOut();
+
+            showToast(
+                "No se encontró tu perfil de usuario.",
+                "error"
             );
 
-        if (icon) {
+            showLogin();
 
-            icon.className =
-                isPassword
-                    ? "fa-solid fa-eye-slash"
-                    : "fa-solid fa-eye";
+            return;
         }
-    }
-);
-```
 
+        if (
+            currentProfile.estado &&
+            String(currentProfile.estado).toLowerCase() === "inactivo"
+        ) {
+            showToast(
+                "Tu cuenta está desactivada.",
+                "error"
+            );
+
+            await supabaseClient.auth.signOut();
+
+            return;
+        }
+
+        updateUserInterface();
+        showApp();
+
+        await loadDashboard();
+
+        if (isAdmin()) {
+            await loadUsers();
+        }
+
+        console.log("✅ Aplicación autenticada correctamente");
+
+    } catch (error) {
+        console.error(
+            "❌ Error inicializando aplicación:",
+            error
+        );
+
+        showToast(
+            "No se pudo cargar tu información.",
+            "error"
+        );
+    }
 }
 
+
 /* =========================================================
-15. NAVEGACIÓN
-========================================================= */
+   10. CARGAR PERFIL
+   ========================================================= */
 
-function setupNavigation() {
+async function loadCurrentProfile() {
+    try {
+        const {
+            data,
+            error
+        } = await supabaseClient
+            .from("profiles")
+            .select(`
+                id,
+                nombre,
+                apellido,
+                email,
+                usuario,
+                rol,
+                estado,
+                moneda,
+                avatar_url
+            `)
+            .eq("id", currentUser.id)
+            .maybeSingle();
 
-```
-navItems.forEach(item => {
+        if (error) {
+            console.error(
+                "❌ Error cargando perfil:",
+                error
+            );
 
-    item.addEventListener(
+            return false;
+        }
+
+        if (!data) {
+            console.warn(
+                "⚠️ No existe perfil para:",
+                currentUser.id
+            );
+
+            return false;
+        }
+
+        currentProfile = data;
+
+        console.log(
+            "✅ Perfil cargado:",
+            currentProfile
+        );
+
+        return true;
+
+    } catch (error) {
+        console.error(
+            "❌ Error inesperado cargando perfil:",
+            error
+        );
+
+        return false;
+    }
+}
+
+
+/* =========================================================
+   11. ACTUALIZAR INTERFAZ DEL USUARIO
+   ========================================================= */
+
+function updateUserInterface() {
+    if (!currentProfile) return;
+
+    const fullName = [
+        currentProfile.nombre,
+        currentProfile.apellido
+    ]
+        .filter(Boolean)
+        .join(" ");
+
+    const displayName =
+        fullName ||
+        currentProfile.usuario ||
+        currentProfile.email ||
+        "Usuario";
+
+    const role = currentProfile.rol || "usuario";
+
+    const initials = getInitials(displayName);
+
+    document.querySelectorAll("[data-user-name]")
+        .forEach((element) => {
+            element.textContent = displayName;
+        });
+
+    document.querySelectorAll("[data-user-role]")
+        .forEach((element) => {
+            element.textContent = formatRole(role);
+        });
+
+    document.querySelectorAll("[data-user-email]")
+        .forEach((element) => {
+            element.textContent =
+                currentProfile.email || currentUser.email || "";
+        });
+
+    document.querySelectorAll("[data-user-initials]")
+        .forEach((element) => {
+            element.textContent = initials;
+        });
+
+    document.querySelectorAll("[data-welcome-name]")
+        .forEach((element) => {
+            element.textContent =
+                currentProfile.nombre ||
+                currentProfile.usuario ||
+                "Usuario";
+        });
+
+    document.querySelectorAll("[data-account-role]")
+        .forEach((element) => {
+            element.textContent = formatRole(role);
+        });
+
+    document.querySelectorAll("[data-user-avatar]")
+        .forEach((element) => {
+            if (currentProfile.avatar_url) {
+                element.src = currentProfile.avatar_url;
+                element.style.display = "block";
+            }
+        });
+
+    const adminItems = document.querySelectorAll(
+        '[data-admin-only], .admin-only'
+    );
+
+    adminItems.forEach((element) => {
+        element.style.display = isAdmin()
+            ? ""
+            : "none";
+    });
+}
+
+
+/* =========================================================
+   12. MOSTRAR / OCULTAR PANTALLAS
+   ========================================================= */
+
+function showLogin() {
+    if (loginScreen) {
+        loginScreen.style.display = "";
+        loginScreen.classList.remove("hidden");
+    }
+
+    if (appContainer) {
+        appContainer.style.display = "none";
+        appContainer.classList.add("hidden");
+    }
+}
+
+
+function showLoadingApp() {
+    if (loginScreen) {
+        loginScreen.style.display = "none";
+        loginScreen.classList.add("hidden");
+    }
+
+    if (appContainer) {
+        appContainer.style.display = "";
+        appContainer.classList.remove("hidden");
+    }
+}
+
+
+function showApp() {
+    if (loginScreen) {
+        loginScreen.style.display = "none";
+        loginScreen.classList.add("hidden");
+    }
+
+    if (appContainer) {
+        appContainer.style.display = "";
+        appContainer.classList.remove("hidden");
+    }
+}
+
+
+/* =========================================================
+   13. LOADING LOGIN
+   ========================================================= */
+
+function setLoginLoading(loading) {
+    if (!loginForm) return;
+
+    const button =
+        loginForm.querySelector(
+            'button[type="submit"]'
+        );
+
+    if (!button) return;
+
+    if (loading) {
+        button.disabled = true;
+
+        if (!button.dataset.originalText) {
+            button.dataset.originalText =
+                button.innerHTML;
+        }
+
+        button.innerHTML = `
+            <span class="spinner"></span>
+            Iniciando sesión...
+        `;
+    } else {
+        button.disabled = false;
+
+        if (button.dataset.originalText) {
+            button.innerHTML =
+                button.dataset.originalText;
+        }
+    }
+}
+
+
+/* =========================================================
+   14. VISIBILIDAD DE CONTRASEÑA
+   ========================================================= */
+
+function setupPasswordToggle() {
+    if (!passwordToggle || !loginPassword) return;
+
+    passwordToggle.addEventListener(
         "click",
         () => {
+            const isPassword =
+                loginPassword.type === "password";
 
-            const section =
-                item.dataset.section;
+            loginPassword.type =
+                isPassword ? "text" : "password";
 
-            if (!section) return;
+            const icon =
+                passwordToggle.querySelector("i");
 
-            showSection(section);
+            if (icon) {
+                icon.classList.toggle(
+                    "fa-eye",
+                    !isPassword
+                );
 
-            closeSidebar();
+                icon.classList.toggle(
+                    "fa-eye-slash",
+                    isPassword
+                );
+            }
+
+            passwordToggle.setAttribute(
+                "aria-label",
+                isPassword
+                    ? "Ocultar contraseña"
+                    : "Mostrar contraseña"
+            );
         }
     );
-});
+}
 
-document
-    .querySelectorAll("[data-go-section]")
-    .forEach(button => {
 
-        button.addEventListener(
+/* =========================================================
+   15. NAVEGACIÓN
+   ========================================================= */
+
+function setupNavigation() {
+    navItems.forEach((item) => {
+        item.addEventListener(
             "click",
-            () => {
+            (event) => {
+                event.preventDefault();
 
                 const section =
-                    button.dataset.goSection;
+                    item.dataset.section;
 
-                if (section) {
+                if (!section) return;
 
-                    showSection(section);
-                }
+                showSection(section);
+
+                closeSidebar();
             }
         );
     });
-```
 
+    document
+        .querySelectorAll("[data-navigate]")
+        .forEach((element) => {
+            element.addEventListener(
+                "click",
+                (event) => {
+                    event.preventDefault();
+
+                    const section =
+                        element.dataset.navigate;
+
+                    if (section) {
+                        showSection(section);
+                    }
+                }
+            );
+        });
 }
 
-function showSection(sectionName) {
 
-```
-if (!sectionName) {
-    sectionName = "dashboard";
-}
+async function showSection(sectionName) {
+    if (!sectionName) return;
 
-if (
-    sectionName === "usuarios" &&
-    currentProfile?.rol !== "admin"
-) {
+    pageSections.forEach((section) => {
+        section.classList.remove("active");
 
-    showToast(
-        "error",
-        "Acceso denegado",
-        "No tienes permisos para acceder a esta sección."
-    );
+        if (
+            section.id === sectionName ||
+            section.dataset.section === sectionName
+        ) {
+            section.classList.add("active");
+        }
+    });
 
-    return;
-}
+    navItems.forEach((item) => {
+        item.classList.toggle(
+            "active",
+            item.dataset.section === sectionName
+        );
+    });
 
-pageSections.forEach(section => {
+    updatePageTitle(sectionName);
 
-    section.hidden =
-        section.dataset.section !==
-        sectionName;
-});
+    try {
+        switch (sectionName) {
+            case "dashboard":
+            case "inicio":
+                await loadDashboard();
+                break;
 
-navItems.forEach(item => {
+            case "metas":
+                await loadGoalsPage();
+                break;
 
-    item.classList.toggle(
-        "active",
-        item.dataset.section ===
-        sectionName
-    );
-});
+            case "reportes":
+                await loadReports();
+                break;
 
-updatePageTitle(
-    sectionName
-);
+            case "usuarios":
+                if (isAdmin()) {
+                    await loadUsers();
+                }
+                break;
 
-if (
-    sectionName === "usuarios" &&
-    currentProfile?.rol === "admin"
-) {
-
-    loadUsers();
-}
-
-if (sectionName === "reportes") {
-
-    loadReports();
-}
-
-if (sectionName === "metas") {
-
-    loadGoals();
-}
-
-window.scrollTo({
-    top: 0,
-    behavior: "smooth"
-});
-```
-
-}
-
-/* =========================================================
-16. TÍTULO DE PÁGINA
-========================================================= */
-
-function updatePageTitle(section) {
-
-```
-const title =
-    document.getElementById(
-        "pageTitle"
-    );
-
-const eyebrow =
-    document.getElementById(
-        "pageEyebrow"
-    );
-
-if (!title) return;
-
-const titles = {
-
-    dashboard: {
-        title: "Dashboard",
-        eyebrow: "RESUMEN FINANCIERO"
-    },
-
-    ingresos: {
-        title: "Ingresos",
-        eyebrow: "GESTIÓN FINANCIERA"
-    },
-
-    salidas: {
-        title: "Salidas",
-        eyebrow: "GESTIÓN FINANCIERA"
-    },
-
-    aportes: {
-        title: "Aportes",
-        eyebrow: "GESTIÓN FINANCIERA"
-    },
-
-    otros: {
-        title: "Otros movimientos",
-        eyebrow: "GESTIÓN FINANCIERA"
-    },
-
-    metas: {
-        title: "Metas",
-        eyebrow: "OBJETIVOS FINANCIEROS"
-    },
-
-    reportes: {
-        title: "Reportes",
-        eyebrow: "ANÁLISIS FINANCIERO"
-    },
-
-    usuarios: {
-        title: "Usuarios",
-        eyebrow: "ADMINISTRACIÓN"
-    },
-
-    configuracion: {
-        title: "Configuración",
-        eyebrow: "CONFIGURACIÓN"
+            default:
+                break;
+        }
+    } catch (error) {
+        console.error(
+            "Error cargando sección:",
+            error
+        );
     }
-
-};
-
-const data =
-    titles[section] ||
-    titles.dashboard;
-
-title.textContent =
-    data.title;
-
-if (eyebrow) {
-
-    eyebrow.textContent =
-        data.eyebrow;
 }
-```
 
+
+function updatePageTitle(sectionName) {
+    const titles = {
+        dashboard: "Dashboard",
+        inicio: "Dashboard",
+        ingresos: "Ingresos",
+        salidas: "Salidas",
+        aportes: "Aportes",
+        otros: "Otros movimientos",
+        metas: "Metas financieras",
+        reportes: "Reportes",
+        usuarios: "Usuarios",
+        configuracion: "Configuración"
+    };
+
+    const title =
+        titles[sectionName] ||
+        "FinanzasPersonales";
+
+    document
+        .querySelectorAll("[data-page-title]")
+        .forEach((element) => {
+            element.textContent = title;
+        });
 }
+
 
 /* =========================================================
-17. SIDEBAR
-========================================================= */
+   16. SIDEBAR
+   ========================================================= */
 
 function setupSidebar() {
+    if (mobileMenuButton) {
+        mobileMenuButton.addEventListener(
+            "click",
+            openSidebar
+        );
+    }
 
-```
-if (mobileMenuBtn) {
+    if (sidebarCloseButton) {
+        sidebarCloseButton.addEventListener(
+            "click",
+            closeSidebar
+        );
+    }
 
-    mobileMenuBtn.addEventListener(
-        "click",
-        openSidebar
-    );
+    if (sidebarOverlay) {
+        sidebarOverlay.addEventListener(
+            "click",
+            closeSidebar
+        );
+    }
 }
 
-if (sidebarClose) {
-
-    sidebarClose.addEventListener(
-        "click",
-        closeSidebar
-    );
-}
-
-if (sidebarOverlay) {
-
-    sidebarOverlay.addEventListener(
-        "click",
-        closeSidebar
-    );
-}
-```
-
-}
 
 function openSidebar() {
-
-```
-if (!sidebar) return;
-
-sidebar.classList.add(
-    "open"
-);
-
-if (sidebarOverlay) {
-
-    sidebarOverlay.hidden =
-        false;
+    sidebar?.classList.add("open");
+    sidebarOverlay?.classList.add("active");
+    document.body.classList.add("sidebar-open");
 }
-```
 
-}
 
 function closeSidebar() {
-
-```
-if (!sidebar) return;
-
-sidebar.classList.remove(
-    "open"
-);
-
-if (sidebarOverlay) {
-
-    sidebarOverlay.hidden =
-        true;
+    sidebar?.classList.remove("open");
+    sidebarOverlay?.classList.remove("active");
+    document.body.classList.remove("sidebar-open");
 }
-```
 
-}
 
 /* =========================================================
-18. LOGOUT
-========================================================= */
+   17. LOGOUT
+   ========================================================= */
 
 function setupLogout() {
+    if (!logoutButton) return;
 
-```
-if (!logoutBtn) return;
+    logoutButton.addEventListener(
+        "click",
+        async (event) => {
+            event.preventDefault();
 
-logoutBtn.addEventListener(
-    "click",
-    async () => {
+            try {
+                const {
+                    error
+                } = await supabaseClient.auth.signOut();
 
-        if (!supabaseClient) return;
+                if (error) {
+                    throw error;
+                }
 
-        const confirmed =
-            confirm(
-                "¿Seguro que deseas cerrar sesión?"
-            );
+                currentUser = null;
+                currentProfile = null;
 
-        if (!confirmed) return;
+                closeSidebar();
 
-        try {
+                showToast(
+                    "Sesión cerrada correctamente.",
+                    "success"
+                );
 
-            const {
-                error
-            } =
-                await supabaseClient.auth.signOut();
+                showLogin();
 
-            if (error) {
-
+            } catch (error) {
                 console.error(
+                    "❌ Error cerrando sesión:",
                     error
                 );
 
                 showToast(
-                    "error",
-                    "Error",
-                    "No se pudo cerrar la sesión."
+                    "No se pudo cerrar la sesión.",
+                    "error"
                 );
-
-                return;
             }
-
-            showToast(
-                "success",
-                "Sesión cerrada",
-                "Hasta pronto."
-            );
-
-            currentUser =
-                null;
-
-            currentProfile =
-                null;
-
-            showLogin();
-
-        } catch (error) {
-
-            console.error(
-                error
-            );
         }
-    }
-);
-```
-
+    );
 }
 
+
 /* =========================================================
-19. DASHBOARD
-========================================================= */
+   18. DASHBOARD
+   ========================================================= */
 
 async function loadDashboard() {
+    if (!currentUser) return;
 
-```
-if (!currentUser) return;
+    try {
+        const [
+            ingresos,
+            salidas,
+            aportes
+        ] = await Promise.all([
+            getTransactions("ingresos"),
+            getTransactions("salidas"),
+            getTransactions("aportes")
+        ]);
 
-try {
+        const totalIngresos =
+            sumAmounts(ingresos);
 
-    const [
-        ingresosResult,
-        salidasResult,
-        aportesResult
-    ] = await Promise.all([
+        const totalSalidas =
+            sumAmounts(salidas);
 
-        supabaseClient
-            .from("ingresos")
-            .select("monto, fecha, concepto, categoria")
-            .eq("user_id", currentUser.id)
-            .order("fecha", {
-                ascending: false
-            }),
+        const totalAportes =
+            sumAmounts(aportes);
 
-        supabaseClient
-            .from("salidas")
-            .select("monto, fecha, concepto, categoria")
-            .eq("user_id", currentUser.id)
-            .order("fecha", {
-                ascending: false
-            }),
+        const balance =
+            totalIngresos -
+            totalSalidas -
+            totalAportes;
 
-        supabaseClient
-            .from("aportes")
-            .select("monto, fecha, concepto, tipo")
-            .eq("user_id", currentUser.id)
-            .order("fecha", {
-                ascending: false
-            })
-    ]);
+        updateDashboardNumbers({
+            totalIngresos,
+            totalSalidas,
+            totalAportes,
+            balance
+        });
 
-    if (ingresosResult.error) {
+        await loadFlowChart(
+            ingresos,
+            salidas,
+            aportes
+        );
+
+        await loadRecentActivity(
+            ingresos,
+            salidas,
+            aportes
+        );
+
+        await loadGoalsPreview();
+
+    } catch (error) {
         console.error(
-            "Error ingresos:",
-            ingresosResult.error
+            "❌ Error cargando dashboard:",
+            error
+        );
+
+        showToast(
+            "No se pudo cargar el dashboard.",
+            "error"
         );
     }
-
-    if (salidasResult.error) {
-        console.error(
-            "Error salidas:",
-            salidasResult.error
-        );
-    }
-
-    if (aportesResult.error) {
-        console.error(
-            "Error aportes:",
-            aportesResult.error
-        );
-    }
-
-    const ingresos =
-        ingresosResult.data || [];
-
-    const salidas =
-        salidasResult.data || [];
-
-    const aportes =
-        aportesResult.data || [];
-
-    const totalIngresos =
-        sumAmounts(ingresos);
-
-    const totalSalidas =
-        sumAmounts(salidas);
-
-    const totalAportes =
-        sumAmounts(aportes);
-
-    const balance =
-        totalIngresos -
-        totalSalidas -
-        totalAportes;
-
-    updateDashboardNumbers({
-        balance,
-        ingresos: totalIngresos,
-        salidas: totalSalidas,
-        aportes: totalAportes
-    });
-
-    renderFlowChart(
-        ingresos,
-        salidas,
-        aportes
-    );
-
-    renderRecentActivity(
-        ingresos,
-        salidas,
-        aportes
-    );
-
-    await loadGoalsPreview();
-
-} catch (error) {
-
-    console.error(
-        "❌ Error dashboard:",
-        error
-    );
 }
-```
 
-}
 
 /* =========================================================
-20. NÚMEROS DASHBOARD
-========================================================= */
+   19. OBTENER TRANSACCIONES
+   ========================================================= */
 
-function updateDashboardNumbers(data) {
-
-```
-setText(
-    "balanceValue",
-    formatMoney(data.balance)
-);
-
-setText(
-    "incomeValue",
-    formatMoney(data.ingresos)
-);
-
-setText(
-    "expenseValue",
-    formatMoney(data.salidas)
-);
-
-setText(
-    "contributionValue",
-    formatMoney(data.aportes)
-);
-```
-
-}
-
-/* =========================================================
-21. GRÁFICO FLUJO
-========================================================= */
-
-function renderFlowChart(
-ingresos,
-salidas,
-aportes
-) {
-
-```
-const canvas =
-    document.getElementById(
-        "flowChart"
-    );
-
-if (!canvas) return;
-
-if (flowChart) {
-
-    flowChart.destroy();
-}
-
-const labels =
-    getLastSixMonths();
-
-const incomeData =
-    getMonthlyTotals(
-        ingresos,
-        labels
-    );
-
-const expenseData =
-    getMonthlyTotals(
-        salidas,
-        labels
-    );
-
-const contributionData =
-    getMonthlyTotals(
-        aportes,
-        labels
-    );
-
-if (!window.Chart) {
-
-    console.warn(
-        "Chart.js no está disponible."
-    );
-
-    return;
-}
-
-flowChart =
-    new Chart(
-        canvas.getContext("2d"),
-        {
-            type: "line",
-
-            data: {
-
-                labels,
-
-                datasets: [
-
-                    {
-                        label: "Ingresos",
-                        data: incomeData,
-                        tension: 0.4,
-                        borderWidth: 2,
-                        fill: false
-                    },
-
-                    {
-                        label: "Salidas",
-                        data: expenseData,
-                        tension: 0.4,
-                        borderWidth: 2,
-                        fill: false
-                    },
-
-                    {
-                        label: "Aportes",
-                        data: contributionData,
-                        tension: 0.4,
-                        borderWidth: 2,
-                        fill: false
-                    }
-
-                ]
-            },
-
-            options: {
-
-                responsive: true,
-
-                maintainAspectRatio: false,
-
-                interaction: {
-                    mode: "index",
-                    intersect: false
-                },
-
-                plugins: {
-
-                    legend: {
-                        display: true
-                    }
-
-                },
-
-                scales: {
-
-                    y: {
-
-                        beginAtZero: true,
-
-                        ticks: {
-
-                            callback: value => {
-
-                                return formatMoney(
-                                    value
-                                );
-                            }
-
-                        }
-
-                    }
-
-                }
-            }
-        }
-    );
-```
-
-}
-
-/* =========================================================
-22. ACTIVIDAD RECIENTE
-========================================================= */
-
-function renderRecentActivity(
-ingresos,
-salidas,
-aportes
-) {
-
-```
-const container =
-    document.getElementById(
-        "recentActivity"
-    );
-
-if (!container) return;
-
-const activity = [
-
-    ...ingresos.map(item => ({
-        ...item,
-        type: "income"
-    })),
-
-    ...salidas.map(item => ({
-        ...item,
-        type: "expense"
-    })),
-
-    ...aportes.map(item => ({
-        ...item,
-        type: "contribution"
-    }))
-
-]
-    .sort(
-        (a, b) =>
-            new Date(b.fecha) -
-            new Date(a.fecha)
-    )
-    .slice(0, 6);
-
-if (!activity.length) {
-
-    container.innerHTML = `
-        <div class="empty-state small">
-            <div class="empty-icon">
-                <i class="fa-solid fa-receipt"></i>
-            </div>
-
-            <h4>Sin movimientos</h4>
-
-            <p>
-                Todavía no tienes movimientos registrados.
-            </p>
-        </div>
-    `;
-
-    return;
-}
-
-container.innerHTML =
-    activity
-        .map(item => {
-
-            const typeData =
-                getActivityTypeData(
-                    item.type
-                );
-
-            const sign =
-                item.type === "income"
-                    ? "+"
-                    : "-";
-
-            return `
-                <div class="activity-item">
-
-                    <div class="activity-icon ${typeData.class}">
-                        <i class="${typeData.icon}"></i>
-                    </div>
-
-                    <div class="activity-info">
-
-                        <strong>
-                            ${escapeHTML(
-                                item.concepto ||
-                                "Movimiento"
-                            )}
-                        </strong>
-
-                        <span>
-                            ${formatDate(
-                                item.fecha
-                            )}
-                        </span>
-
-                    </div>
-
-                    <div class="activity-amount ${typeData.class}">
-                        ${sign}${formatMoney(
-                            item.monto
-                        )}
-                    </div>
-
-                </div>
-            `;
-        })
-        .join("");
-```
-
-}
-
-/* =========================================================
-23. METAS
-========================================================= */
-
-async function loadGoalsPreview() {
-
-```
-if (!currentUser) return;
-
-const container =
-    document.getElementById(
-        "goalsPreview"
-    );
-
-if (!container) return;
-
-const {
-    data,
-    error
-} = await supabaseClient
-    .from("metas")
-    .select(`
-        id,
-        nombre,
-        objetivo,
-        monto_actual,
-        fecha_objetivo
-    `)
-    .eq(
-        "user_id",
-        currentUser.id
-    )
-    .order(
-        "created_at",
-        {
-            ascending: false
-        }
-    )
-    .limit(4);
-
-if (error) {
-
-    console.error(
-        "Error metas:",
-        error
-    );
-
-    return;
-}
-
-const goals =
-    data || [];
-
-if (!goals.length) {
-
-    container.innerHTML = `
-        <div class="empty-state small">
-
-            <div class="empty-icon">
-                <i class="fa-solid fa-bullseye"></i>
-            </div>
-
-            <h4>No tienes metas todavía</h4>
-
-            <p>
-                Crea una meta para empezar a planificar tu futuro financiero.
-            </p>
-
-        </div>
-    `;
-
-    return;
-}
-
-container.innerHTML =
-    goals
-        .map(goal => {
-
-            const percentage =
-                goal.objetivo > 0
-                    ? Math.min(
-                        100,
-                        (
-                            Number(
-                                goal.monto_actual
-                            ) /
-                            Number(
-                                goal.objetivo
-                            )
-                        ) * 100
-                    )
-                    : 0;
-
-            return `
-                <div class="goal-item">
-
-                    <div class="goal-top">
-
-                        <span class="goal-name">
-                            ${escapeHTML(
-                                goal.nombre
-                            )}
-                        </span>
-
-                        <span class="goal-percentage">
-                            ${percentage.toFixed(0)}%
-                        </span>
-
-                    </div>
-
-                    <div class="goal-progress">
-
-                        <div
-                            class="goal-progress-bar"
-                            style="width:${percentage}%"
-                        ></div>
-
-                    </div>
-
-                    <div class="goal-bottom">
-
-                        <span>
-                            ${formatMoney(
-                                goal.monto_actual
-                            )}
-                        </span>
-
-                        <span>
-                            Meta:
-                            ${formatMoney(
-                                goal.objetivo
-                            )}
-                        </span>
-
-                    </div>
-
-                </div>
-            `;
-        })
-        .join("");
-```
-
-}
-
-/* =========================================================
-24. CARGAR METAS
-========================================================= */
-
-async function loadGoals() {
-
-```
-if (!currentUser) return;
-
-const container =
-    document.getElementById(
-        "goalsPageContainer"
-    );
-
-if (!container) return;
-
-const {
-    data,
-    error
-} = await supabaseClient
-    .from("metas")
-    .select("*")
-    .eq(
-        "user_id",
-        currentUser.id
-    )
-    .order(
-        "created_at",
-        {
-            ascending: false
-        }
-    );
-
-if (error) {
-
-    console.error(
-        "Error cargando metas:",
-        error
-    );
-
-    return;
-}
-
-const goals =
-    data || [];
-
-if (!goals.length) {
-
-    container.innerHTML = `
-        <div class="empty-state">
-
-            <div class="empty-icon">
-                <i class="fa-solid fa-bullseye"></i>
-            </div>
-
-            <h4>Aún no tienes metas</h4>
-
-            <p>
-                Cuando agreguemos el formulario de metas podrás crear tus objetivos financieros aquí.
-            </p>
-
-        </div>
-    `;
-
-    return;
-}
-
-container.innerHTML =
-    goals
-        .map(goal => {
-
-            const percentage =
-                goal.objetivo > 0
-                    ? Math.min(
-                        100,
-                        (
-                            Number(
-                                goal.monto_actual
-                            ) /
-                            Number(
-                                goal.objetivo
-                            )
-                        ) * 100
-                    )
-                    : 0;
-
-            return `
-                <div class="goal-page-card">
-
-                    <div class="goal-page-card-header">
-
-                        <div class="goal-page-icon">
-                            <i class="fa-solid fa-bullseye"></i>
-                        </div>
-
-                        <div>
-
-                            <h4>
-                                ${escapeHTML(
-                                    goal.nombre
-                                )}
-                            </h4>
-
-                            <p>
-                                ${
-                                    goal.fecha_objetivo
-                                        ? `Objetivo: ${formatDate(goal.fecha_objetivo)}`
-                                        : "Sin fecha objetivo"
-                                }
-                            </p>
-
-                        </div>
-
-                    </div>
-
-                    <div class="goal-page-amount">
-
-                        <strong>
-                            ${formatMoney(
-                                goal.monto_actual
-                            )}
-                        </strong>
-
-                        <span>
-                            de ${formatMoney(
-                                goal.objetivo
-                            )}
-                        </span>
-
-                    </div>
-
-                    <div class="goal-progress">
-
-                        <div
-                            class="goal-progress-bar"
-                            style="width:${percentage}%"
-                        ></div>
-
-                    </div>
-
-                    <div class="goal-bottom">
-
-                        <span>
-                            Progreso
-                        </span>
-
-                        <span>
-                            ${percentage.toFixed(0)}%
-                        </span>
-
-                    </div>
-
-                </div>
-            `;
-        })
-        .join("");
-```
-
-}
-
-/* =========================================================
-25. REPORTES
-========================================================= */
-
-async function loadReports() {
-
-```
-if (!currentUser) return;
-
-try {
-
-    const [
-        ingresosResult,
-        salidasResult,
-        aportesResult
-    ] = await Promise.all([
-
-        supabaseClient
-            .from("ingresos")
-            .select("monto"),
-
-        supabaseClient
-            .from("salidas")
-            .select("monto"),
-
-        supabaseClient
-            .from("aportes")
-            .select("monto")
-
-    ]);
-
-    const ingresos =
-        sumAmounts(
-            ingresosResult.data || []
-        );
-
-    const salidas =
-        sumAmounts(
-            salidasResult.data || []
-        );
-
-    const aportes =
-        sumAmounts(
-            aportesResult.data || []
-        );
-
-    const balance =
-        ingresos -
-        salidas -
-        aportes;
-
-    setText(
-        "reportIncome",
-        formatMoney(ingresos)
-    );
-
-    setText(
-        "reportExpense",
-        formatMoney(salidas)
-    );
-
-    setText(
-        "reportContribution",
-        formatMoney(aportes)
-    );
-
-    setText(
-        "reportBalance",
-        formatMoney(balance)
-    );
-
-} catch (error) {
-
-    console.error(
-        "Error reportes:",
-        error
-    );
-}
-```
-
-}
-
-/* =========================================================
-26. ADMIN — CARGAR USUARIOS
-========================================================= */
-
-async function loadUsers() {
-
-```
-if (
-    !currentUser ||
-    currentProfile?.rol !== "admin"
-) {
-    return;
-}
-
-const tbody =
-    document.getElementById(
-        "usersTableBody"
-    );
-
-if (!tbody) return;
-
-tbody.innerHTML = `
-    <tr>
-        <td colspan="6">
-            <div class="loading-state">
-                <i class="fa-solid fa-spinner fa-spin"></i>
-                Cargando usuarios...
-            </div>
-        </td>
-    </tr>
-`;
-
-try {
-
+async function getTransactions(tableName) {
     const {
         data,
         error
     } = await supabaseClient
-        .from("profiles")
-        .select(`
-            id,
-            nombre,
-            apellido,
-            email,
-            usuario,
-            rol,
-            estado,
-            moneda,
-            created_at
-        `)
-        .order(
-            "created_at",
-            {
-                ascending: false
-            }
-        );
+        .from(tableName)
+        .select("*")
+        .eq("usuario_id", currentUser.id)
+        .order("created_at", {
+            ascending: false
+        });
 
     if (error) {
-
         console.error(
-            "Error usuarios:",
+            `Error cargando ${tableName}:`,
             error
         );
 
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="6">
-                    <div class="empty-state small">
-                        <div class="empty-icon">
-                            <i class="fa-solid fa-triangle-exclamation"></i>
-                        </div>
-                        <h4>No se pudieron cargar los usuarios</h4>
-                        <p>
-                            ${escapeHTML(
-                                error.message
-                            )}
-                        </p>
-                    </div>
-                </td>
-            </tr>
+        return [];
+    }
+
+    return data || [];
+}
+
+
+/* =========================================================
+   20. ACTUALIZAR NÚMEROS DASHBOARD
+   ========================================================= */
+
+function updateDashboardNumbers({
+    totalIngresos,
+    totalSalidas,
+    totalAportes,
+    balance
+}) {
+    setText(
+        "[data-total-income]",
+        formatMoney(totalIngresos)
+    );
+
+    setText(
+        "[data-total-expenses]",
+        formatMoney(totalSalidas)
+    );
+
+    setText(
+        "[data-total-contributions]",
+        formatMoney(totalAportes)
+    );
+
+    setText(
+        "[data-balance]",
+        formatMoney(balance)
+    );
+
+    setText(
+        "#total-ingresos",
+        formatMoney(totalIngresos)
+    );
+
+    setText(
+        "#total-salidas",
+        formatMoney(totalSalidas)
+    );
+
+    setText(
+        "#total-aportes",
+        formatMoney(totalAportes)
+    );
+
+    setText(
+        "#balance",
+        formatMoney(balance)
+    );
+}
+
+
+/* =========================================================
+   21. GRÁFICO DE FLUJO
+   ========================================================= */
+
+async function loadFlowChart(
+    ingresos,
+    salidas,
+    aportes
+) {
+    const canvas =
+        document.getElementById("flowChart");
+
+    if (!canvas || !window.Chart) return;
+
+    const labels = [
+        "Ingresos",
+        "Salidas",
+        "Aportes"
+    ];
+
+    const values = [
+        sumAmounts(ingresos),
+        sumAmounts(salidas),
+        sumAmounts(aportes)
+    ];
+
+    if (flowChart) {
+        flowChart.destroy();
+    }
+
+    flowChart = new Chart(canvas, {
+        type: "doughnut",
+
+        data: {
+            labels,
+
+            datasets: [
+                {
+                    data: values
+                }
+            ]
+        },
+
+        options: {
+            responsive: true,
+
+            maintainAspectRatio: false,
+
+            plugins: {
+                legend: {
+                    position: "bottom"
+                },
+
+                tooltip: {
+                    callbacks: {
+                        label: function (context) {
+                            const value =
+                                context.raw || 0;
+
+                            return ` ${context.label}: ${formatMoney(value)}`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+
+/* =========================================================
+   22. ACTIVIDAD RECIENTE
+   ========================================================= */
+
+async function loadRecentActivity(
+    ingresos,
+    salidas,
+    aportes
+) {
+    const container =
+        document.querySelector(
+            "[data-recent-activity]"
+        ) ||
+        document.getElementById(
+            "recent-activity"
+        );
+
+    if (!container) return;
+
+    const activities = [
+        ...ingresos.map((item) => ({
+            ...item,
+            type: "Ingreso"
+        })),
+
+        ...salidas.map((item) => ({
+            ...item,
+            type: "Salida"
+        })),
+
+        ...aportes.map((item) => ({
+            ...item,
+            type: "Aporte"
+        }))
+    ]
+        .sort(
+            (a, b) =>
+                new Date(
+                    b.created_at ||
+                    b.fecha ||
+                    0
+                ) -
+                new Date(
+                    a.created_at ||
+                    a.fecha ||
+                    0
+                )
+        )
+        .slice(0, 8);
+
+    if (!activities.length) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-receipt"></i>
+                <p>Aún no tienes movimientos registrados.</p>
+            </div>
         `;
 
         return;
     }
 
-    allUsers =
-        data || [];
-
-    renderUsers(
-        allUsers
-    );
-
-    updateUserCount(
-        allUsers.length
-    );
-
-} catch (error) {
-
-    console.error(
-        "❌ Error:",
-        error
-    );
-}
-```
-
-}
-
-/* =========================================================
-27. RENDER USUARIOS
-========================================================= */
-
-function renderUsers(users) {
-
-```
-const tbody =
-    document.getElementById(
-        "usersTableBody"
-    );
-
-if (!tbody) return;
-
-if (!users.length) {
-
-    tbody.innerHTML = `
-        <tr class="empty-table-row">
-
-            <td colspan="6">
-
-                <div class="empty-state small">
-
-                    <div class="empty-icon">
-                        <i class="fa-solid fa-users"></i>
-                    </div>
-
-                    <h4>No hay usuarios</h4>
-
-                    <p>
-                        No se encontraron usuarios con los filtros actuales.
-                    </p>
-
-                </div>
-
-            </td>
-
-        </tr>
-    `;
-
-    return;
-}
-
-tbody.innerHTML =
-    users
-        .map(user => {
-
-            const name =
-                `${user.nombre || ""} ${user.apellido || ""}`
-                    .trim() ||
-                user.usuario ||
-                "Usuario";
-
-            const initials =
-                getInitials(
-                    user.nombre,
-                    user.apellido
+    container.innerHTML = activities
+        .map((item) => {
+            const amount =
+                Number(
+                    item.monto ??
+                    item.amount ??
+                    item.valor ??
+                    0
                 );
 
-            const isCurrent =
-                user.id ===
-                currentUser?.id;
+            const description =
+                item.descripcion ||
+                item.nombre ||
+                item.concepto ||
+                item.categoria ||
+                "Movimiento";
 
             return `
-                <tr>
+                <div class="activity-item">
+                    <div class="activity-icon">
+                        <i class="fas ${
+                            item.type === "Ingreso"
+                                ? "fa-arrow-down"
+                                : item.type === "Salida"
+                                    ? "fa-arrow-up"
+                                    : "fa-piggy-bank"
+                        }"></i>
+                    </div>
 
-                    <td>
+                    <div class="activity-info">
+                        <strong>
+                            ${escapeHTML(description)}
+                        </strong>
 
-                        <div class="table-user">
-
-                            <div class="table-avatar">
-                                ${escapeHTML(
-                                    initials
-                                )}
-                            </div>
-
-                            <div>
-
-                                <strong>
-                                    ${escapeHTML(
-                                        name
-                                    )}
-                                </strong>
-
-                                <span>
-                                    ${escapeHTML(
-                                        user.usuario ||
-                                        "Sin usuario"
-                                    )}
-                                </span>
-
-                            </div>
-
-                        </div>
-
-                    </td>
-
-                    <td>
-                        ${escapeHTML(
-                            user.email ||
-                            "-"
-                        )}
-                    </td>
-
-                    <td>
-
-                        <span class="role-badge ${user.rol === "admin" ? "admin" : "user"}">
-
-                            ${
-                                user.rol === "admin"
-                                    ? "Administrador"
-                                    : "Usuario"
-                            }
-
+                        <span>
+                            ${escapeHTML(item.type)}
+                            ·
+                            ${formatDate(
+                                item.created_at ||
+                                item.fecha
+                            )}
                         </span>
+                    </div>
 
-                    </td>
-
-                    <td>
-
-                        <span class="status-badge ${user.estado === "activo" ? "active" : "inactive"}">
-
-                            ${
-                                user.estado === "activo"
-                                    ? "Activo"
-                                    : "Inactivo"
-                            }
-
-                        </span>
-
-                    </td>
-
-                    <td>
-                        ${escapeHTML(
-                            user.moneda ||
-                            "PEN"
-                        )}
-                    </td>
-
-                    <td>
-
-                        <div class="table-actions">
-
-                            ${
-                                isCurrent
-                                    ? `
-                                        <button
-                                            class="table-action"
-                                            title="Tu cuenta"
-                                            disabled
-                                        >
-                                            <i class="fa-solid fa-user"></i>
-                                        </button>
-                                    `
-                                    : `
-                                        <button
-                                            class="table-action toggle-user-btn"
-                                            data-id="${user.id}"
-                                            data-status="${user.estado}"
-                                            title="${
-                                                user.estado === "activo"
-                                                    ? "Desactivar"
-                                                    : "Activar"
-                                            }"
-                                        >
-
-                                            <i class="fa-solid ${
-                                                user.estado === "activo"
-                                                    ? "fa-user-slash"
-                                                    : "fa-user-check"
-                                            }"></i>
-
-                                        </button>
-                                    `
-                            }
-
-                        </div>
-
-                    </td>
-
-                </tr>
+                    <div class="activity-amount">
+                        ${formatMoney(amount)}
+                    </div>
+                </div>
             `;
         })
         .join("");
-
-document
-    .querySelectorAll(
-        ".toggle-user-btn"
-    )
-    .forEach(button => {
-
-        button.addEventListener(
-            "click",
-            () => {
-
-                toggleUserStatus(
-                    button.dataset.id,
-                    button.dataset.status
-                );
-            }
-        );
-    });
-```
-
 }
+
 
 /* =========================================================
-28. CAMBIAR ESTADO USUARIO
-========================================================= */
+   23. METAS - VISTA PREVIA
+   ========================================================= */
 
-async function toggleUserStatus(
-userId,
-currentStatus
-) {
-
-```
-if (
-    !currentUser ||
-    currentProfile?.rol !== "admin"
-) {
-    return;
-}
-
-const newStatus =
-    currentStatus === "activo"
-        ? "inactivo"
-        : "activo";
-
-const action =
-    newStatus === "activo"
-        ? "activar"
-        : "desactivar";
-
-const confirmed =
-    confirm(
-        `¿Deseas ${action} este usuario?`
-    );
-
-if (!confirmed) return;
-
-try {
-
-    const {
-        error
-    } = await supabaseClient
-        .from("profiles")
-        .update({
-            estado: newStatus,
-            updated_at:
-                new Date().toISOString()
-        })
-        .eq(
-            "id",
-            userId
+async function loadGoalsPreview() {
+    const container =
+        document.querySelector(
+            "[data-goals-preview]"
+        ) ||
+        document.getElementById(
+            "goals-preview"
         );
 
-    if (error) {
+    if (!container) return;
 
+    try {
+        const {
+            data,
+            error
+        } = await supabaseClient
+            .from("metas")
+            .select("*")
+            .eq("usuario_id", currentUser.id)
+            .order("created_at", {
+                ascending: false
+            })
+            .limit(3);
+
+        if (error) {
+            console.error(
+                "Error cargando metas:",
+                error
+            );
+
+            return;
+        }
+
+        const goals = data || [];
+
+        if (!goals.length) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-bullseye"></i>
+                    <p>No tienes metas creadas todavía.</p>
+                </div>
+            `;
+
+            return;
+        }
+
+        container.innerHTML = goals
+            .map(renderGoalCard)
+            .join("");
+
+    } catch (error) {
         console.error(
+            "Error cargando vista previa de metas:",
+            error
+        );
+    }
+}
+
+
+/* =========================================================
+   24. PÁGINA DE METAS
+   ========================================================= */
+
+async function loadGoalsPage() {
+    const container =
+        document.querySelector(
+            "[data-goals-list]"
+        ) ||
+        document.getElementById(
+            "goals-list"
+        );
+
+    if (!container) return;
+
+    try {
+        const {
+            data,
+            error
+        } = await supabaseClient
+            .from("metas")
+            .select("*")
+            .eq("usuario_id", currentUser.id)
+            .order("created_at", {
+                ascending: false
+            });
+
+        if (error) {
+            throw error;
+        }
+
+        const goals = data || [];
+
+        if (!goals.length) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-bullseye"></i>
+                    <h3>Sin metas todavía</h3>
+                    <p>Crea tu primera meta financiera.</p>
+                </div>
+            `;
+
+            return;
+        }
+
+        container.innerHTML =
+            goals.map(renderGoalCard).join("");
+
+    } catch (error) {
+        console.error(
+            "❌ Error cargando metas:",
             error
         );
 
         showToast(
-            "error",
-            "No se pudo actualizar",
-            error.message
+            "No se pudieron cargar las metas.",
+            "error"
         );
+    }
+}
+
+
+/* =========================================================
+   25. RENDER META
+   ========================================================= */
+
+function renderGoalCard(goal) {
+    const target =
+        Number(
+            goal.monto_objetivo ??
+            goal.objetivo ??
+            goal.meta ??
+            0
+        );
+
+    const current =
+        Number(
+            goal.monto_actual ??
+            goal.actual ??
+            goal.ahorrado ??
+            0
+        );
+
+    const percentage =
+        target > 0
+            ? Math.min(
+                100,
+                Math.max(
+                    0,
+                    (current / target) * 100
+                )
+            )
+            : 0;
+
+    const name =
+        goal.nombre ||
+        goal.titulo ||
+        "Meta financiera";
+
+    return `
+        <div class="goal-card">
+
+            <div class="goal-header">
+                <div>
+                    <h3>
+                        ${escapeHTML(name)}
+                    </h3>
+
+                    ${
+                        goal.descripcion
+                            ? `<p>${escapeHTML(goal.descripcion)}</p>`
+                            : ""
+                    }
+                </div>
+
+                <span class="goal-percentage">
+                    ${percentage.toFixed(0)}%
+                </span>
+            </div>
+
+            <div class="goal-progress">
+                <div
+                    class="goal-progress-bar"
+                    style="width: ${percentage}%"
+                ></div>
+            </div>
+
+            <div class="goal-values">
+                <span>
+                    ${formatMoney(current)}
+                </span>
+
+                <span>
+                    ${formatMoney(target)}
+                </span>
+            </div>
+
+        </div>
+    `;
+}
+
+
+/* =========================================================
+   26. REPORTES
+   ========================================================= */
+
+async function loadReports() {
+    if (!currentUser) return;
+
+    try {
+        const [
+            ingresos,
+            salidas,
+            aportes
+        ] = await Promise.all([
+            getTransactions("ingresos"),
+            getTransactions("salidas"),
+            getTransactions("aportes")
+        ]);
+
+        const totalIngresos =
+            sumAmounts(ingresos);
+
+        const totalSalidas =
+            sumAmounts(salidas);
+
+        const totalAportes =
+            sumAmounts(aportes);
+
+        const balance =
+            totalIngresos -
+            totalSalidas -
+            totalAportes;
+
+        setText(
+            "[data-report-income]",
+            formatMoney(totalIngresos)
+        );
+
+        setText(
+            "[data-report-expenses]",
+            formatMoney(totalSalidas)
+        );
+
+        setText(
+            "[data-report-contributions]",
+            formatMoney(totalAportes)
+        );
+
+        setText(
+            "[data-report-balance]",
+            formatMoney(balance)
+        );
+
+        loadExpenseChart(salidas);
+
+    } catch (error) {
+        console.error(
+            "❌ Error cargando reportes:",
+            error
+        );
+    }
+}
+
+
+/* =========================================================
+   27. GRÁFICO DE GASTOS
+   ========================================================= */
+
+function loadExpenseChart(salidas) {
+    const canvas =
+        document.getElementById(
+            "expenseChart"
+        );
+
+    if (!canvas || !window.Chart) return;
+
+    const grouped = {};
+
+    salidas.forEach((item) => {
+        const category =
+            item.categoria ||
+            item.tipo ||
+            item.descripcion ||
+            "Otros";
+
+        const amount =
+            Number(
+                item.monto ??
+                item.amount ??
+                0
+            );
+
+        grouped[category] =
+            (grouped[category] || 0) +
+            amount;
+    });
+
+    const labels =
+        Object.keys(grouped);
+
+    const values =
+        Object.values(grouped);
+
+    if (expenseChart) {
+        expenseChart.destroy();
+    }
+
+    expenseChart = new Chart(canvas, {
+        type: "bar",
+
+        data: {
+            labels,
+
+            datasets: [
+                {
+                    label: "Gastos",
+                    data: values
+                }
+            ]
+        },
+
+        options: {
+            responsive: true,
+
+            maintainAspectRatio: false,
+
+            scales: {
+                y: {
+                    beginAtZero: true,
+
+                    ticks: {
+                        callback: function (value) {
+                            return formatMoney(value);
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+
+/* =========================================================
+   28. ADMINISTRACIÓN DE USUARIOS
+   ========================================================= */
+
+function isAdmin() {
+    if (!currentProfile) return false;
+
+    const role =
+        String(
+            currentProfile.rol || ""
+        ).toLowerCase();
+
+    return [
+        "admin",
+        "administrador",
+        "superadmin"
+    ].includes(role);
+}
+
+
+async function loadUsers() {
+    if (!isAdmin()) return;
+
+    const container =
+        document.querySelector(
+            "[data-users-list]"
+        ) ||
+        document.getElementById(
+            "users-list"
+        );
+
+    if (!container) return;
+
+    try {
+        const {
+            data,
+            error
+        } = await supabaseClient
+            .from("profiles")
+            .select(`
+                id,
+                nombre,
+                apellido,
+                email,
+                usuario,
+                rol,
+                estado,
+                moneda,
+                avatar_url,
+                created_at
+            `)
+            .order("created_at", {
+                ascending: false
+            });
+
+        if (error) {
+            throw error;
+        }
+
+        allUsers = data || [];
+
+        renderUsers(allUsers);
+
+        updateUserCount(allUsers);
+
+    } catch (error) {
+        console.error(
+            "❌ Error cargando usuarios:",
+            error
+        );
+
+        showToast(
+            "No se pudieron cargar los usuarios.",
+            "error"
+        );
+    }
+}
+
+
+/* =========================================================
+   29. RENDER USUARIOS
+   ========================================================= */
+
+function renderUsers(users) {
+    const container =
+        document.querySelector(
+            "[data-users-list]"
+        ) ||
+        document.getElementById(
+            "users-list"
+        );
+
+    if (!container) return;
+
+    if (!users.length) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-users"></i>
+                <h3>No se encontraron usuarios</h3>
+                <p>Prueba con otro criterio de búsqueda.</p>
+            </div>
+        `;
 
         return;
     }
 
-    showToast(
-        "success",
-        "Usuario actualizado",
-        `El usuario ahora está ${newStatus}.`
-    );
+    container.innerHTML = users
+        .map((user) => {
+            const name = [
+                user.nombre,
+                user.apellido
+            ]
+                .filter(Boolean)
+                .join(" ") ||
+                user.usuario ||
+                "Usuario";
 
-    await loadUsers();
+            const status =
+                String(
+                    user.estado || "activo"
+                ).toLowerCase();
 
-} catch (error) {
+            const role =
+                String(
+                    user.rol || "usuario"
+                ).toLowerCase();
 
-    console.error(
-        error
-    );
+            return `
+                <div
+                    class="user-row"
+                    data-user-id="${escapeHTML(user.id)}"
+                >
 
-    showToast(
-        "error",
-        "Error",
-        "No se pudo actualizar el usuario."
-    );
+                    <div class="user-avatar">
+                        ${escapeHTML(
+                            getInitials(name)
+                        )}
+                    </div>
+
+                    <div class="user-info">
+                        <strong>
+                            ${escapeHTML(name)}
+                        </strong>
+
+                        <span>
+                            ${escapeHTML(
+                                user.email || ""
+                            )}
+                        </span>
+                    </div>
+
+                    <div class="user-role">
+                        <span class="badge role-${escapeHTML(role)}">
+                            ${escapeHTML(
+                                formatRole(role)
+                            )}
+                        </span>
+                    </div>
+
+                    <div class="user-status">
+                        <span class="badge ${
+                            status === "activo"
+                                ? "badge-success"
+                                : "badge-danger"
+                        }">
+                            ${
+                                status === "activo"
+                                    ? "Activo"
+                                    : "Inactivo"
+                            }
+                        </span>
+                    </div>
+
+                    <div class="user-actions">
+                        ${
+                            user.id !== currentUser.id
+                                ? `
+                                    <button
+                                        type="button"
+                                        class="btn-toggle-user"
+                                        data-toggle-user="${escapeHTML(
+                                            user.id
+                                        )}"
+                                    >
+                                        ${
+                                            status === "activo"
+                                                ? "Desactivar"
+                                                : "Activar"
+                                        }
+                                    </button>
+                                `
+                                : `
+                                    <span class="current-user-label">
+                                        Tú
+                                    </span>
+                                `
+                        }
+                    </div>
+
+                </div>
+            `;
+        })
+        .join("");
+
+    container
+        .querySelectorAll(
+            "[data-toggle-user]"
+        )
+        .forEach((button) => {
+            button.addEventListener(
+                "click",
+                async () => {
+                    await toggleUserStatus(
+                        button.dataset.toggleUser
+                    );
+                }
+            );
+        });
 }
-```
 
-}
 
 /* =========================================================
-29. BUSCADOR USUARIOS
-========================================================= */
+   30. CAMBIAR ESTADO USUARIO
+   ========================================================= */
+
+async function toggleUserStatus(userId) {
+    if (!isAdmin()) return;
+
+    const user =
+        allUsers.find(
+            (item) =>
+                item.id === userId
+        );
+
+    if (!user) return;
+
+    const currentStatus =
+        String(
+            user.estado || "activo"
+        ).toLowerCase();
+
+    const newStatus =
+        currentStatus === "activo"
+            ? "inactivo"
+            : "activo";
+
+    try {
+        const {
+            error
+        } = await supabaseClient
+            .from("profiles")
+            .update({
+                estado: newStatus
+            })
+            .eq("id", userId);
+
+        if (error) {
+            throw error;
+        }
+
+        showToast(
+            newStatus === "activo"
+                ? "Usuario activado."
+                : "Usuario desactivado.",
+            "success"
+        );
+
+        await loadUsers();
+
+    } catch (error) {
+        console.error(
+            "❌ Error actualizando usuario:",
+            error
+        );
+
+        showToast(
+            "No se pudo actualizar el usuario.",
+            "error"
+        );
+    }
+}
+
+
+/* =========================================================
+   31. BÚSQUEDA DE USUARIOS
+   ========================================================= */
 
 function setupUserSearch() {
+    const searchInput =
+        document.querySelector(
+            "[data-user-search]"
+        ) ||
+        document.getElementById(
+            "user-search"
+        );
 
-```
-const search =
-    document.getElementById(
-        "userSearch"
+    if (!searchInput) return;
+
+    searchInput.addEventListener(
+        "input",
+        applyUserFilters
     );
-
-if (!search) return;
-
-search.addEventListener(
-    "input",
-    filterUsers
-);
-```
-
 }
+
+
+/* =========================================================
+   32. FILTROS USUARIOS
+   ========================================================= */
 
 function setupUserFilters() {
-
-```
-const roleFilter =
-    document.getElementById(
-        "userRoleFilter"
-    );
-
-const statusFilter =
-    document.getElementById(
-        "userStatusFilter"
-    );
-
-if (roleFilter) {
-
-    roleFilter.addEventListener(
-        "change",
-        filterUsers
-    );
+    document
+        .querySelectorAll(
+            "[data-user-filter]"
+        )
+        .forEach((filter) => {
+            filter.addEventListener(
+                "change",
+                applyUserFilters
+            );
+        });
 }
 
-if (statusFilter) {
 
-    statusFilter.addEventListener(
-        "change",
-        filterUsers
-    );
-}
-```
+function applyUserFilters() {
+    const searchInput =
+        document.querySelector(
+            "[data-user-search]"
+        ) ||
+        document.getElementById(
+            "user-search"
+        );
 
-}
+    const search =
+        searchInput?.value
+            .trim()
+            .toLowerCase() || "";
 
-function filterUsers() {
+    const roleFilter =
+        document.querySelector(
+            "[data-user-filter='role']"
+        )?.value || "all";
 
-```
-const search =
-    document.getElementById(
-        "userSearch"
-    )?.value
-        .trim()
-        .toLowerCase() || "";
+    const statusFilter =
+        document.querySelector(
+            "[data-user-filter='status']"
+        )?.value || "all";
 
-const role =
-    document.getElementById(
-        "userRoleFilter"
-    )?.value || "all";
+    const filtered =
+        allUsers.filter((user) => {
+            const name = [
+                user.nombre,
+                user.apellido,
+                user.usuario,
+                user.email
+            ]
+                .filter(Boolean)
+                .join(" ")
+                .toLowerCase();
 
-const status =
-    document.getElementById(
-        "userStatusFilter"
-    )?.value || "all";
+            const role =
+                String(
+                    user.rol || ""
+                ).toLowerCase();
 
-const filtered =
-    allUsers.filter(
-        user => {
-
-            const text =
-                [
-                    user.nombre,
-                    user.apellido,
-                    user.email,
-                    user.usuario
-                ]
-                    .filter(Boolean)
-                    .join(" ")
-                    .toLowerCase();
+            const status =
+                String(
+                    user.estado || ""
+                ).toLowerCase();
 
             const matchesSearch =
                 !search ||
-                text.includes(search);
+                name.includes(search);
 
             const matchesRole =
-                role === "all" ||
-                user.rol === role;
+                roleFilter === "all" ||
+                role === roleFilter;
 
             const matchesStatus =
-                status === "all" ||
-                user.estado === status;
+                statusFilter === "all" ||
+                status === statusFilter;
 
             return (
                 matchesSearch &&
                 matchesRole &&
                 matchesStatus
             );
-        }
-    );
+        });
 
-renderUsers(
-    filtered
-);
-```
-
+    renderUsers(filtered);
 }
+
 
 /* =========================================================
-30. MODAL CREAR USUARIO
-========================================================= */
+   33. CONTADOR DE USUARIOS
+   ========================================================= */
 
-function setupModalEvents() {
+function updateUserCount(users) {
+    const active =
+        users.filter(
+            (user) =>
+                String(
+                    user.estado || "activo"
+                ).toLowerCase() === "activo"
+        ).length;
 
-```
-const openButton =
-    document.getElementById(
-        "openCreateUserModal"
+    const total =
+        users.length;
+
+    setText(
+        "[data-user-count]",
+        total
     );
 
-const modal =
-    document.getElementById(
-        "createUserModal"
-    );
-
-const closeButton =
-    document.getElementById(
-        "closeCreateUserModal"
-    );
-
-const cancelButton =
-    document.getElementById(
-        "cancelCreateUser"
-    );
-
-if (openButton) {
-
-    openButton.addEventListener(
-        "click",
-        () => {
-
-            if (
-                currentProfile?.rol !==
-                "admin"
-            ) {
-
-                showToast(
-                    "error",
-                    "Acceso denegado",
-                    "Solo un administrador puede crear usuarios."
-                );
-
-                return;
-            }
-
-            openModal(
-                modal
-            );
-        }
+    setText(
+        "[data-active-user-count]",
+        active
     );
 }
 
-if (closeButton) {
 
-    closeButton.addEventListener(
-        "click",
-        () => closeModal(modal)
-    );
-}
+/* =========================================================
+   34. CREAR USUARIO
+   ========================================================= */
 
-if (cancelButton) {
+async function handleCreateUser(event) {
+    event.preventDefault();
 
-    cancelButton.addEventListener(
-        "click",
-        () => closeModal(modal)
-    );
-}
+    if (!isAdmin()) {
+        showToast(
+            "No tienes permisos para crear usuarios.",
+            "error"
+        );
 
-if (modal) {
+        return;
+    }
 
-    modal.addEventListener(
-        "click",
-        event => {
+    const form =
+        event.currentTarget;
 
-            if (
-                event.target ===
-                modal
-            ) {
+    const formData =
+        new FormData(form);
 
-                closeModal(
-                    modal
-                );
-            }
-        }
-    );
-}
+    const userData = {
+        nombre:
+            formData.get("nombre")?.trim(),
 
-const createForm =
-    document.getElementById(
-        "createUserForm"
-    );
+        apellido:
+            formData.get("apellido")?.trim(),
 
-if (createForm) {
+        usuario:
+            formData.get("usuario")?.trim(),
 
-    createForm.addEventListener(
-        "submit",
-        handleCreateUser
-    );
-}
-```
+        email:
+            formData.get("email")?.trim(),
 
-}
+        password:
+            formData.get("password"),
 
-async function handleCreateUser(
-event
-) {
+        moneda:
+            formData.get("moneda") || "PEN"
+    };
 
-```
-event.preventDefault();
+    if (
+        !userData.nombre ||
+        !userData.email ||
+        !userData.password
+    ) {
+        showToast(
+            "Completa los campos obligatorios.",
+            "warning"
+        );
 
-if (
-    currentProfile?.rol !==
-    "admin"
-) {
+        return;
+    }
 
-    showToast(
-        "error",
-        "Acceso denegado",
-        "Solo un administrador puede crear usuarios."
-    );
-
-    return;
-}
-
-const nombre =
-    document
-        .getElementById(
-            "newUserNombre"
-        )
-        ?.value
-        .trim();
-
-const apellido =
-    document
-        .getElementById(
-            "newUserApellido"
-        )
-        ?.value
-        .trim();
-
-const usuario =
-    document
-        .getElementById(
-            "newUserUsuario"
-        )
-        ?.value
-        .trim();
-
-const email =
-    document
-        .getElementById(
-            "newUserEmail"
-        )
-        ?.value
-        .trim();
-
-const password =
-    document
-        .getElementById(
-            "newUserPassword"
-        )
-        ?.value;
-
-const moneda =
-    document
-        .getElementById(
-            "newUserMoneda"
-        )
-        ?.value || "PEN";
-
-if (
-    !nombre ||
-    !email ||
-    !password
-) {
-
-    showToast(
-        "warning",
-        "Campos obligatorios",
-        "Completa nombre, email y contraseña."
-    );
-
-    return;
-}
-
-if (password.length < 6) {
-
-    showToast(
-        "warning",
-        "Contraseña demasiado corta",
-        "La contraseña debe tener al menos 6 caracteres."
-    );
-
-    return;
-}
-
-const submitButton =
-    document.getElementById(
-        "createUserSubmit"
-    );
-
-if (submitButton) {
-
-    submitButton.disabled =
-        true;
-
-    submitButton.innerHTML = `
-        <i class="fa-solid fa-spinner fa-spin"></i>
-        Creando usuario...
-    `;
-}
-
-try {
-
-    console.log(
-        "👤 Creando usuario:",
-        email
-    );
-
-    const {
-        data,
-        error
-    } =
-        await supabaseClient.functions.invoke(
+    try {
+        const {
+            data,
+            error
+        } = await supabaseClient.functions.invoke(
             "crear-usuario",
             {
-                body: {
-                    nombre,
-                    apellido,
-                    usuario,
-                    email,
-                    password,
-                    moneda
-                }
+                body: userData
             }
         );
 
-    if (error) {
+        if (error) {
+            throw error;
+        }
 
+        console.log(
+            "✅ Usuario creado:",
+            data
+        );
+
+        showToast(
+            "Usuario creado correctamente.",
+            "success"
+        );
+
+        form.reset();
+
+        closeAllModals();
+
+        await loadUsers();
+
+    } catch (error) {
         console.error(
-            "Error Edge Function:",
+            "❌ Error creando usuario:",
             error
         );
 
-        throw error;
-    }
-
-    if (
-        data &&
-        data.error
-    ) {
-
-        throw new Error(
-            data.error
+        showToast(
+            error?.message ||
+            "No se pudo crear el usuario.",
+            "error"
         );
-    }
-
-    console.log(
-        "✅ Usuario creado:",
-        data
-    );
-
-    showToast(
-        "success",
-        "Usuario creado",
-        `La cuenta ${email} fue creada correctamente.`
-    );
-
-    const form =
-        document.getElementById(
-            "createUserForm"
-        );
-
-    if (form) {
-
-        form.reset();
-    }
-
-    const modal =
-        document.getElementById(
-            "createUserModal"
-        );
-
-    closeModal(
-        modal
-    );
-
-    await loadUsers();
-
-} catch (error) {
-
-    console.error(
-        "❌ Error creando usuario:",
-        error
-    );
-
-    showToast(
-        "error",
-        "No se pudo crear el usuario",
-        error.message ||
-        "Revisa la Edge Function crear-usuario."
-    );
-
-} finally {
-
-    if (submitButton) {
-
-        submitButton.disabled =
-            false;
-
-        submitButton.innerHTML = `
-            <i class="fa-solid fa-user-plus"></i>
-            Crear usuario
-        `;
     }
 }
-```
 
-}
 
 /* =========================================================
-31. GENERADOR DE CONTRASEÑA
-========================================================= */
+   35. GENERADOR DE CONTRASEÑAS
+   ========================================================= */
 
 function setupPasswordGenerator() {
+    document
+        .querySelectorAll(
+            "[data-generate-password]"
+        )
+        .forEach((button) => {
+            button.addEventListener(
+                "click",
+                () => {
+                    const password =
+                        generatePassword(12);
 
-```
-const button =
-    document.getElementById(
-        "generatePassword"
-    );
+                    const input =
+                        document.querySelector(
+                            "[data-password-input]"
+                        ) ||
+                        document.getElementById(
+                            "new-password"
+                        );
 
-const input =
-    document.getElementById(
-        "newUserPassword"
-    );
+                    if (input) {
+                        input.value =
+                            password;
 
-if (!button || !input) {
-    return;
+                        input.dispatchEvent(
+                            new Event(
+                                "input",
+                                {
+                                    bubbles: true
+                                }
+                            )
+                        );
+                    }
+                }
+            );
+        });
 }
 
-button.addEventListener(
-    "click",
-    () => {
 
-        const password =
-            generatePassword();
+function generatePassword(length = 12) {
+    const characters =
+        "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
 
-        input.value =
-            password;
+    let result = "";
 
-        input.type =
-            "text";
-
-        showToast(
-            "info",
-            "Contraseña generada",
-            "Guarda esta contraseña antes de crear la cuenta."
-        );
-    }
-);
-```
-
-}
-
-function generatePassword() {
-
-```
-const chars =
-    "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
-
-let result = "";
-
-for (
-    let i = 0;
-    i < 10;
-    i++
-) {
-
-    result +=
-        chars.charAt(
+    for (let i = 0; i < length; i++) {
+        result += characters.charAt(
             Math.floor(
                 Math.random() *
-                chars.length
+                characters.length
             )
         );
+    }
+
+    return result;
 }
 
-return result;
-```
-
-}
 
 /* =========================================================
-32. MODAL
-========================================================= */
+   36. MODALES
+   ========================================================= */
 
-function openModal(modal) {
+function setupModalEvents() {
+    document
+        .querySelectorAll(
+            "[data-modal-open]"
+        )
+        .forEach((button) => {
+            button.addEventListener(
+                "click",
+                () => {
+                    openModal(
+                        button.dataset.modalOpen
+                    );
+                }
+            );
+        });
 
-```
-if (!modal) return;
+    document
+        .querySelectorAll(
+            "[data-modal-close]"
+        )
+        .forEach((button) => {
+            button.addEventListener(
+                "click",
+                () => {
+                    closeModal(
+                        button.dataset.modalClose
+                    );
+                }
+            );
+        });
 
-modal.hidden =
-    false;
+    document
+        .querySelectorAll(".modal-overlay")
+        .forEach((overlay) => {
+            overlay.addEventListener(
+                "click",
+                (event) => {
+                    if (
+                        event.target ===
+                        overlay
+                    ) {
+                        overlay.classList.remove(
+                            "active"
+                        );
+                    }
+                }
+            );
+        });
 
-document.body.style.overflow =
-    "hidden";
-```
-
+    document
+        .querySelectorAll("form[data-create-user]")
+        .forEach((form) => {
+            form.addEventListener(
+                "submit",
+                handleCreateUser
+            );
+        });
 }
 
-function closeModal(modal) {
 
-```
-if (!modal) return;
-
-modal.hidden =
-    true;
-
-document.body.style.overflow =
-    "";
-```
-
-}
-
-/* =========================================================
-33. ACCIONES RÁPIDAS
-========================================================= */
-
-function setupQuickActions() {
-
-```
-document
-    .querySelectorAll(
-        "[data-quick-action]"
-    )
-    .forEach(button => {
-
-        button.addEventListener(
-            "click",
-            () => {
-
-                const action =
-                    button.dataset.quickAction;
-
-                if (
-                    action === "income"
-                ) {
-
-                    showSection(
-                        "ingresos"
-                    );
-                }
-
-                if (
-                    action === "expense"
-                ) {
-
-                    showSection(
-                        "salidas"
-                    );
-                }
-
-                if (
-                    action === "contribution"
-                ) {
-
-                    showSection(
-                        "aportes"
-                    );
-                }
-
-                if (
-                    action === "other"
-                ) {
-
-                    showSection(
-                        "otros"
-                    );
-                }
-            }
+function openModal(modalId) {
+    const modal =
+        document.getElementById(
+            modalId
         );
-    });
-```
 
+    if (!modal) return;
+
+    modal.classList.add("active");
+
+    document.body.classList.add(
+        "modal-open"
+    );
 }
 
-/* =========================================================
-34. TEMA
-========================================================= */
 
-function setupThemeToggle() {
+function closeModal(modalId) {
+    const modal =
+        document.getElementById(
+            modalId
+        );
 
-```
-const toggle =
-    document.getElementById(
-        "themeToggle"
+    if (!modal) return;
+
+    modal.classList.remove(
+        "active"
     );
 
-if (!toggle) return;
+    document.body.classList.remove(
+        "modal-open"
+    );
+}
 
-toggle.addEventListener(
-    "click",
-    () => {
 
-        document.body.classList.toggle(
-            "dark-mode"
+function closeAllModals() {
+    document
+        .querySelectorAll(
+            ".modal-overlay.active"
+        )
+        .forEach((modal) => {
+            modal.classList.remove(
+                "active"
+            );
+        });
+
+    document.body.classList.remove(
+        "modal-open"
+    );
+}
+
+
+/* =========================================================
+   37. ACCIONES RÁPIDAS
+   ========================================================= */
+
+function setupQuickActions() {
+    document
+        .querySelectorAll(
+            "[data-quick-action]"
+        )
+        .forEach((button) => {
+            button.addEventListener(
+                "click",
+                () => {
+                    const action =
+                        button.dataset.quickAction;
+
+                    handleQuickAction(action);
+                }
+            );
+        });
+}
+
+
+function handleQuickAction(action) {
+    const actions = {
+        ingreso: "ingresos",
+        ingresos: "ingresos",
+
+        salida: "salidas",
+        salidas: "salidas",
+
+        aporte: "aportes",
+        aportes: "aportes",
+
+        meta: "metas",
+        metas: "metas",
+
+        reporte: "reportes",
+        reportes: "reportes",
+
+        usuario: "usuarios",
+        usuarios: "usuarios"
+    };
+
+    const section =
+        actions[action];
+
+    if (section) {
+        showSection(section);
+    }
+}
+
+
+/* =========================================================
+   38. TEMA
+   ========================================================= */
+
+function setupThemeToggle() {
+    const buttons =
+        document.querySelectorAll(
+            "[data-theme-toggle]"
         );
 
-        const enabled =
-            document.body.classList.contains(
-                "dark-mode"
-            );
+    if (!buttons.length) return;
 
-        localStorage.setItem(
-            "financeTheme",
-            enabled
+    const savedTheme =
+        localStorage.getItem(
+            "finanzas-theme"
+        );
+
+    if (savedTheme) {
+        applyTheme(savedTheme);
+    } else {
+        const systemDark =
+            window.matchMedia &&
+            window.matchMedia(
+                "(prefers-color-scheme: dark)"
+            ).matches;
+
+        applyTheme(
+            systemDark
                 ? "dark"
                 : "light"
         );
-
-        const switchDot =
-            toggle.querySelector(
-                "span"
-            );
-
-        if (switchDot) {
-
-            switchDot.style.transform =
-                enabled
-                    ? "translateX(13px)"
-                    : "translateX(0)";
-        }
     }
-);
 
-const savedTheme =
-    localStorage.getItem(
-        "financeTheme"
-    );
+    buttons.forEach((button) => {
+        button.addEventListener(
+            "click",
+            () => {
+                const current =
+                    document.documentElement
+                        .dataset.theme ||
+                    "light";
 
-if (
-    savedTheme ===
-    "dark"
-) {
+                const next =
+                    current === "dark"
+                        ? "light"
+                        : "dark";
 
-    document.body.classList.add(
-        "dark-mode"
-    );
-
-    const switchDot =
-        toggle.querySelector(
-            "span"
+                applyTheme(next);
+            }
         );
-
-    if (switchDot) {
-
-        switchDot.style.transform =
-            "translateX(13px)";
-    }
+    });
 }
-```
 
+
+function applyTheme(theme) {
+    document.documentElement.dataset.theme =
+        theme;
+
+    document.documentElement.classList.toggle(
+        "dark",
+        theme === "dark"
+    );
+
+    localStorage.setItem(
+        "finanzas-theme",
+        theme
+    );
+
+    document
+        .querySelectorAll(
+            "[data-theme-icon]"
+        )
+        .forEach((icon) => {
+            icon.className =
+                theme === "dark"
+                    ? "fas fa-sun"
+                    : "fas fa-moon";
+        });
 }
+
 
 /* =========================================================
-35. UTILIDADES
-========================================================= */
+   39. TOASTS
+   ========================================================= */
 
-function sumAmounts(items) {
-
-```
-return items.reduce(
-    (
-        total,
-        item
-    ) => {
-
-        return (
-            total +
-            Number(
-                item.monto || 0
-            )
+function showToast(
+    message,
+    type = "info"
+) {
+    let container =
+        document.getElementById(
+            "toast-container"
         );
-    },
-    0
-);
-```
 
+    if (!container) {
+        container =
+            document.createElement("div");
+
+        container.id =
+            "toast-container";
+
+        document.body.appendChild(
+            container
+        );
+    }
+
+    const toast =
+        document.createElement("div");
+
+    toast.className =
+        `toast toast-${type}`;
+
+    const icons = {
+        success: "fa-check-circle",
+        error: "fa-times-circle",
+        warning: "fa-exclamation-triangle",
+        info: "fa-info-circle"
+    };
+
+    toast.innerHTML = `
+        <i class="fas ${
+            icons[type] || icons.info
+        }"></i>
+
+        <span>
+            ${escapeHTML(message)}
+        </span>
+
+        <button
+            type="button"
+            class="toast-close"
+            aria-label="Cerrar"
+        >
+            &times;
+        </button>
+    `;
+
+    container.appendChild(toast);
+
+    const closeButton =
+        toast.querySelector(
+            ".toast-close"
+        );
+
+    closeButton?.addEventListener(
+        "click",
+        () => {
+            removeToast(toast);
+        }
+    );
+
+    requestAnimationFrame(() => {
+        toast.classList.add("show");
+    });
+
+    setTimeout(() => {
+        removeToast(toast);
+    }, 5000);
 }
+
+
+function removeToast(toast) {
+    if (!toast) return;
+
+    toast.classList.remove(
+        "show"
+    );
+
+    setTimeout(() => {
+        toast.remove();
+    }, 300);
+}
+
+
+/* =========================================================
+   40. UTILIDADES
+   ========================================================= */
+
+function sumAmounts(items = []) {
+    return items.reduce(
+        (total, item) => {
+            const amount =
+                Number(
+                    item.monto ??
+                    item.amount ??
+                    item.valor ??
+                    0
+                );
+
+            return total +
+                (Number.isFinite(amount)
+                    ? amount
+                    : 0);
+        },
+        0
+    );
+}
+
 
 function formatMoney(
-amount
+    amount = 0
 ) {
+    const currency =
+        currentProfile?.moneda ||
+        "PEN";
 
-```
-const currency =
-    currentProfile?.moneda ||
-    "PEN";
+    const numericAmount =
+        Number(amount) || 0;
 
-return new Intl.NumberFormat(
-    "es-PE",
-    {
-        style: "currency",
-        currency,
-        minimumFractionDigits: 2
+    try {
+        return new Intl.NumberFormat(
+            "es-PE",
+            {
+                style: "currency",
+                currency,
+                minimumFractionDigits: 2
+            }
+        ).format(
+            numericAmount
+        );
+    } catch {
+        return `S/ ${numericAmount.toFixed(2)}`;
     }
-).format(
-    Number(amount) || 0
-);
-```
-
 }
 
-function formatDate(
-date
-) {
 
-```
-if (!date) return "-";
+function formatDate(date) {
+    if (!date) return "Sin fecha";
 
-try {
+    const parsed =
+        new Date(date);
+
+    if (
+        Number.isNaN(
+            parsed.getTime()
+        )
+    ) {
+        return "Sin fecha";
+    }
 
     return new Intl.DateTimeFormat(
         "es-PE",
         {
             day: "2-digit",
-            month: "short",
+            month: "2-digit",
             year: "numeric"
         }
-    ).format(
-        new Date(
-            `${date}T00:00:00`
-        )
+    ).format(parsed);
+}
+
+
+function getInitials(name = "") {
+    const parts =
+        String(name)
+            .trim()
+            .split(/\s+/)
+            .filter(Boolean);
+
+    if (!parts.length) {
+        return "U";
+    }
+
+    if (parts.length === 1) {
+        return parts[0]
+            .substring(0, 2)
+            .toUpperCase();
+    }
+
+    return (
+        parts[0][0] +
+        parts[parts.length - 1][0]
+    ).toUpperCase();
+}
+
+
+function formatRole(role) {
+    const roles = {
+        admin: "Administrador",
+        administrador: "Administrador",
+        superadmin: "Super administrador",
+        usuario: "Usuario",
+        user: "Usuario"
+    };
+
+    return (
+        roles[
+            String(role)
+                .toLowerCase()
+        ] ||
+        role ||
+        "Usuario"
     );
-
-} catch {
-
-    return date;
-}
-```
-
 }
 
-function getInitials(
-nombre,
-apellido
-) {
-
-```
-const first =
-    nombre
-        ?.trim()
-        ?.charAt(0)
-        ?.toUpperCase() || "";
-
-const second =
-    apellido
-        ?.trim()
-        ?.charAt(0)
-        ?.toUpperCase() || "";
-
-if (first && second) {
-
-    return first + second;
-}
-
-if (first) {
-
-    return first;
-}
-
-return "U";
-```
-
-}
 
 function setText(
-id,
-value
+    selector,
+    value
 ) {
-
-```
-const element =
-    document.getElementById(id);
-
-if (element) {
-
-    element.textContent =
-        value;
-}
-```
-
+    document
+        .querySelectorAll(selector)
+        .forEach((element) => {
+            element.textContent =
+                value ?? "";
+        });
 }
 
-function getFriendlyAuthError(
-error
-) {
-
-```
-const message =
-    error?.message ||
-    "";
-
-const lower =
-    message.toLowerCase();
-
-if (
-    lower.includes(
-        "invalid login credentials"
-    )
-) {
-
-    return "Correo o contraseña incorrectos.";
-}
-
-if (
-    lower.includes(
-        "email not confirmed"
-    )
-) {
-
-    return "El correo electrónico todavía no ha sido confirmado.";
-}
-
-if (
-    lower.includes(
-        "too many requests"
-    )
-) {
-
-    return "Demasiados intentos. Espera unos minutos e inténtalo nuevamente.";
-}
-
-return message ||
-    "No se pudo iniciar sesión.";
-```
-
-}
-
-function escapeHTML(
-value
-) {
-
-```
-return String(
-    value ?? ""
-)
-    .replace(
-        /&/g,
-        "&amp;"
-    )
-    .replace(
-        /</g,
-        "&lt;"
-    )
-    .replace(
-        />/g,
-        "&gt;"
-    )
-    .replace(
-        /"/g,
-        "&quot;"
-    )
-    .replace(
-        /'/g,
-        "&#039;"
-    );
-```
-
-}
 
 /* =========================================================
-36. DATOS GRÁFICOS
-========================================================= */
+   41. ERRORES DE AUTENTICACIÓN
+   ========================================================= */
 
-function getLastSixMonths() {
+function getFriendlyAuthError(error) {
+    const message =
+        String(
+            error?.message || ""
+        ).toLowerCase();
 
-```
-const result = [];
-
-const now =
-    new Date();
-
-for (
-    let i = 5;
-    i >= 0;
-    i--
-) {
-
-    const date =
-        new Date(
-            now.getFullYear(),
-            now.getMonth() - i,
-            1
-        );
-
-    result.push(
-        date.toLocaleDateString(
-            "es-PE",
-            {
-                month: "short"
-            }
+    if (
+        message.includes(
+            "invalid login credentials"
         )
-    );
-}
-
-return result;
-```
-
-}
-
-function getMonthlyTotals(
-items,
-labels
-) {
-
-```
-const now =
-    new Date();
-
-const totals =
-    [];
-
-for (
-    let i = 5;
-    i >= 0;
-    i--
-) {
-
-    const target =
-        new Date(
-            now.getFullYear(),
-            now.getMonth() - i,
-            1
-        );
-
-    const year =
-        target.getFullYear();
-
-    const month =
-        target.getMonth();
-
-    const total =
-        items.reduce(
-            (
-                sum,
-                item
-            ) => {
-
-                const date =
-                    new Date(
-                        `${item.fecha}T00:00:00`
-                    );
-
-                if (
-                    date.getFullYear() ===
-                        year &&
-                    date.getMonth() ===
-                        month
-                ) {
-
-                    return (
-                        sum +
-                        Number(
-                            item.monto || 0
-                        )
-                    );
-                }
-
-                return sum;
-            },
-            0
-        );
-
-    totals.push(
-        total
-    );
-}
-
-return totals;
-```
-
-}
-
-function getActivityTypeData(
-type
-) {
-
-```
-const data = {
-
-    income: {
-        icon:
-            "fa-solid fa-arrow-trend-up",
-        class:
-            "income"
-    },
-
-    expense: {
-        icon:
-            "fa-solid fa-arrow-trend-down",
-        class:
-            "expense"
-    },
-
-    contribution: {
-        icon:
-            "fa-solid fa-piggy-bank",
-        class:
-            "contribution"
+    ) {
+        return "Correo o contraseña incorrectos.";
     }
 
-};
+    if (
+        message.includes(
+            "email not confirmed"
+        )
+    ) {
+        return "Tu correo electrónico todavía no ha sido confirmado.";
+    }
 
-return (
-    data[type] ||
-    data.income
-);
-```
+    if (
+        message.includes(
+            "too many requests"
+        )
+    ) {
+        return "Demasiados intentos. Espera unos minutos e inténtalo nuevamente.";
+    }
 
-}
+    if (
+        message.includes(
+            "user not found"
+        )
+    ) {
+        return "No existe una cuenta con ese correo.";
+    }
 
-/* =========================================================
-37. CONTADOR USUARIOS
-========================================================= */
-
-function updateUserCount(
-count
-) {
-
-```
-const element =
-    document.getElementById(
-        "userCount"
+    return (
+        error?.message ||
+        "No se pudo iniciar sesión."
     );
-
-if (!element) return;
-
-element.textContent =
-    count;
-```
-
 }
 
+
 /* =========================================================
-38. TECLA ESC
-========================================================= */
+   42. SEGURIDAD HTML
+   ========================================================= */
+
+function escapeHTML(value) {
+    return String(
+        value ?? ""
+    )
+        .replace(
+            /&/g,
+            "&amp;"
+        )
+        .replace(
+            /</g,
+            "&lt;"
+        )
+        .replace(
+            />/g,
+            "&gt;"
+        )
+        .replace(
+            /"/g,
+            "&quot;"
+        )
+        .replace(
+            /'/g,
+            "&#039;"
+        );
+}
+
+
+/* =========================================================
+   43. ESCAPE PARA MODALES / TECLADO
+   ========================================================= */
+
+function setupEscapeKey() {
+    document.addEventListener(
+        "keydown",
+        (event) => {
+            if (
+                event.key === "Escape"
+            ) {
+                closeAllModals();
+                closeSidebar();
+            }
+        }
+    );
+}
+
+
+/* =========================================================
+   44. EVENTOS DE FORMULARIOS
+   ========================================================= */
 
 document.addEventListener(
-"keydown",
-event => {
+    "submit",
+    (event) => {
+        const form =
+            event.target;
 
-```
-    if (
-        event.key !==
-        "Escape"
-    ) {
-        return;
+        if (
+            form.matches(
+                "[data-create-user]"
+            )
+        ) {
+            handleCreateUser(
+                event
+            );
+        }
     }
-
-    const modal =
-        document.getElementById(
-            "createUserModal"
-        );
-
-    if (
-        modal &&
-        !modal.hidden
-    ) {
-
-        closeModal(
-            modal
-        );
-    }
-
-    closeSidebar();
-}
-```
-
 );
 
+
 /* =========================================================
-39. EXPORTAR DEBUG
-========================================================= */
+   45. EXPONER FUNCIONES PARA DEBUG
+   ========================================================= */
 
 window.FinanzasApp = {
+    getCurrentUser: () =>
+        currentUser,
 
-```
-getCurrentUser: () =>
-    currentUser,
+    getCurrentProfile: () =>
+        currentProfile,
 
-getCurrentProfile: () =>
-    currentProfile,
+    showSection,
 
-reloadDashboard:
     loadDashboard,
 
-reloadUsers:
     loadUsers,
 
-showSection:
-    showSection
-```
+    loadGoalsPage,
 
+    loadReports,
+
+    openModal,
+
+    closeModal,
+
+    showToast,
+
+    formatMoney,
+
+    formatDate
 };
 
+
+/* =========================================================
+   46. FINAL
+   ========================================================= */
+
 console.log(
-"💰 FinanzasPersonales listo."
+    "💰 FinanzasPersonales listo."
 );
