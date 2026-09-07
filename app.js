@@ -9,14 +9,14 @@ Login + Supabase + Roles + Dashboard + Admin
 1. CONFIGURACIÓN SUPABASE
    ========================================================= */
 
-const SUPABASE_URL = "https://xwkxgrktsdejoaqnbiwk.supabase.co/rest/v1/";
+const SUPABASE_URL = "https://xwkxgrktsdejoaqnbiwk.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_DYl24WF6mNud6QsS4nhhYA_53ohH191";
 
 let supabaseClient = null;
 
 if (
 window.supabase &&
-SUPABASE_URL !== "https://xwkxgrktsdejoaqnbiwk.supabase.co/rest/v1/" &&
+SUPABASE_URL !== "https://xwkxgrktsdejoaqnbiwk.supabase.co" &&
 SUPABASE_ANON_KEY !== "sb_publishable_DYl24WF6mNud6QsS4nhhYA_53ohH191"
 ) {
 supabaseClient = window.supabase.createClient(
