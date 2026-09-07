@@ -161,13 +161,20 @@ async function checkSession() {
    7. LISTENER DE CAMBIOS DE AUTENTICACIÓN
    ========================================================= */
 
-if (window.supabase) {
-    window.supabase.auth.onAuthStateChange(
+if (supabaseClient) {
+    supabaseClient.auth.onAuthStateChange(
         async (event, session) => {
-            console.log("🔐 Cambio de autenticación:", event);
+            console.log(
+                "🔐 Cambio de autenticación:",
+                event
+            );
 
-            if (event === "SIGNED_IN" && session?.user) {
+            if (
+                event === "SIGNED_IN" &&
+                session?.user
+            ) {
                 currentUser = session.user;
+
                 await initializeAuthenticatedApp();
             }
 
@@ -180,7 +187,6 @@ if (window.supabase) {
         }
     );
 }
-
 
 /* =========================================================
    8. LOGIN
