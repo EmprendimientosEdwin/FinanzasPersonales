@@ -103,6 +103,8 @@ const sidebarOverlay = document.getElementById("sidebarOverlay");
 const mobileMenuButton = document.getElementById("mobileMenuBtn");
 const sidebarCloseButton = document.getElementById("sidebarClose");
 
+const navItems = document.querySelectorAll("[data-section]");
+
 /* =========================================================
    4. INICIALIZACIÓN
    ========================================================= */
