@@ -616,6 +616,8 @@ function setupPasswordToggle() {
    15. NAVEGACIÓN
    ========================================================= */
 
+const navItems = document.querySelectorAll("[data-section]");
+
 function setupNavigation() {
     navItems.forEach((item) => {
         item.addEventListener(
