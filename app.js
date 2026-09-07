@@ -1,15 +1,14 @@
 /* =========================================================
-   FINANZASPERSONALES
-   app.js
+   FINANZASPERSONALES - APP.JS PRO MAX
    ========================================================= */
 
+"use strict";
 
 /* =========================================================
    1. CONFIGURACIÓN SUPABASE
-========================================================= */
+   ========================================================= */
 
-const SUPABASE_URL =
-    "https://xwkxgrktsdejoaqnbiwk.supabase.co";
+const SUPABASE_URL = "https://xwkxgrktsdejoaqnbiwk.supabase.co";
 
 const SUPABASE_ANON_KEY =
     "sb_publishable_DYl24WF6mNud6QsS4nhhYA_53ohH191";
@@ -22,15 +21,12 @@ if (
     SUPABASE_ANON_KEY
 ) {
     try {
-        supabaseClient =
-            window.supabase.createClient(
-                SUPABASE_URL,
-                SUPABASE_ANON_KEY
-            );
-
-        console.log(
-            "✅ Supabase conectado correctamente"
+        supabaseClient = window.supabase.createClient(
+            SUPABASE_URL,
+            SUPABASE_ANON_KEY
         );
+
+        console.log("✅ Supabase conectado correctamente");
     } catch (error) {
         console.error(
             "❌ Error inicializando Supabase:",
@@ -39,27 +35,35 @@ if (
     }
 } else {
     console.error(
-        "❌ Supabase no está disponible."
+        "❌ Supabase no está disponible. Revisa la librería y configuración."
     );
 }
 
 
 /* =========================================================
-   2. VARIABLES GLOBALES
-========================================================= */
+   2. ESTADO GLOBAL
+   ========================================================= */
 
 let currentUser = null;
 let currentProfile = null;
 
-let flowChart = null;
-let expenseChart = null;
-
 let allUsers = [];
+let currentSection = "dashboard";
+
+let flowChartInstance = null;
+let expenseChartInstance = null;
+
+let dashboardCache = {
+    ingresos: [],
+    salidas: [],
+    aportes: [],
+    metas: []
+};
 
 
 /* =========================================================
-   3. ELEMENTOS DEL DOM
-========================================================= */
+   3. DOM
+   ========================================================= */
 
 const loginScreen =
     document.getElementById("loginScreen");
@@ -102,98 +106,455 @@ const pageSections =
 
 
 /* =========================================================
-   4. INICIALIZACIÓN
-========================================================= */
+   4. UTILIDADES DOM
+   ========================================================= */
 
-document.addEventListener(
-    "DOMContentLoaded",
-    async () => {
+function getElement(...selectors) {
+    for (const selector of selectors) {
+        if (!selector) continue;
 
-        console.log(
-            "🚀 FinanzasPersonales - JavaScript cargado correctamente"
-        );
+        const element =
+            typeof selector === "string"
+                ? document.querySelector(selector)
+                : selector;
 
-        initializeUI();
-
-        if (!supabaseClient) {
-            showToast(
-                "No se pudo conectar con la base de datos.",
-                "error"
-            );
-            return;
-        }
-
-        await checkSession();
+        if (element) return element;
     }
-);
+
+    return null;
+}
+
+
+function setText(value, ...selectors) {
+    const element = getElement(...selectors);
+
+    if (!element) return;
+
+    element.textContent =
+        value === null ||
+        value === undefined ||
+        value === ""
+            ? "—"
+            : value;
+}
+
+
+function setHTML(html, ...selectors) {
+    const element = getElement(...selectors);
+
+    if (!element) return;
+
+    element.innerHTML = html;
+}
+
+
+function escapeHTML(value) {
+    if (value === null || value === undefined) {
+        return "";
+    }
+
+    return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+
+function debounce(callback, delay = 300) {
+    let timeout;
+
+    return (...args) => {
+        clearTimeout(timeout);
+
+        timeout = setTimeout(() => {
+            callback(...args);
+        }, delay);
+    };
+}
 
 
 /* =========================================================
-   5. INICIALIZAR INTERFAZ
-========================================================= */
+   5. FORMATO DE MONEDA
+   ========================================================= */
 
-function initializeUI() {
+function getCurrency() {
+    return currentProfile?.moneda || "PEN";
+}
 
-    setupLogin();
 
-    setupNavigation();
+function formatMoney(value) {
+    const amount = Number(value) || 0;
 
-    setupSidebar();
+    try {
+        return new Intl.NumberFormat("es-PE", {
+            style: "currency",
+            currency: getCurrency(),
+            minimumFractionDigits: 2
+        }).format(amount);
+    } catch {
+        return `S/ ${amount.toFixed(2)}`;
+    }
+}
 
-    setupPasswordToggle();
 
-    setupLogout();
+function formatNumber(value) {
+    const amount = Number(value) || 0;
 
-    setupThemeToggle();
+    return new Intl.NumberFormat("es-PE", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }).format(amount);
+}
 
-    setupUserSearch();
 
-    setupUserFilters();
+function formatDate(date) {
+    if (!date) return "—";
 
-    setupPasswordGenerator();
+    try {
+        return new Intl.DateTimeFormat("es-PE", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric"
+        }).format(new Date(date));
+    } catch {
+        return date;
+    }
+}
 
-    setupCreateUserModal();
 
-    setupQuickActions();
+function getInitials(nombre, apellido) {
+    const first =
+        String(nombre || "")
+            .trim()
+            .charAt(0)
+            .toUpperCase();
 
-    setupForgotPassword();
+    const last =
+        String(apellido || "")
+            .trim()
+            .charAt(0)
+            .toUpperCase();
 
-    setupNotificationButton();
-
-    setupProfileButton();
-
-    setupEscapeKey();
-
-    console.log(
-        "✅ Interfaz inicializada"
+    return (
+        `${first}${last}` ||
+        String(currentUser?.email || "U")
+            .charAt(0)
+            .toUpperCase()
     );
 }
 
 
 /* =========================================================
-   6. SESIÓN
-========================================================= */
+   6. TOASTS
+   ========================================================= */
+
+function showToast(
+    message,
+    type = "info",
+    duration = 4000
+) {
+    let container =
+        document.getElementById("toast-container");
+
+    if (!container) {
+        container = document.createElement("div");
+
+        container.id = "toast-container";
+
+        container.style.position = "fixed";
+        container.style.top = "20px";
+        container.style.right = "20px";
+        container.style.zIndex = "99999";
+        container.style.display = "flex";
+        container.style.flexDirection = "column";
+        container.style.gap = "10px";
+        container.style.maxWidth = "380px";
+
+        document.body.appendChild(container);
+    }
+
+    const toast =
+        document.createElement("div");
+
+    const icons = {
+        success: "✓",
+        error: "✕",
+        warning: "!",
+        info: "i"
+    };
+
+    toast.innerHTML = `
+        <div style="
+            display:flex;
+            align-items:center;
+            gap:12px;
+        ">
+            <span style="
+                width:30px;
+                height:30px;
+                border-radius:50%;
+                display:flex;
+                align-items:center;
+                justify-content:center;
+                background:rgba(255,255,255,.15);
+                font-weight:800;
+            ">
+                ${icons[type] || "i"}
+            </span>
+
+            <span style="
+                flex:1;
+                line-height:1.4;
+            ">
+                ${escapeHTML(message)}
+            </span>
+
+            <button
+                type="button"
+                style="
+                    border:0;
+                    background:none;
+                    color:inherit;
+                    cursor:pointer;
+                    font-size:18px;
+                    opacity:.7;
+                "
+            >×</button>
+        </div>
+    `;
+
+    const backgrounds = {
+        success: "#15803d",
+        error: "#b91c1c",
+        warning: "#b45309",
+        info: "#1d4ed8"
+    };
+
+    toast.style.background =
+        backgrounds[type] || backgrounds.info;
+
+    toast.style.color = "#fff";
+    toast.style.padding = "14px 16px";
+    toast.style.borderRadius = "14px";
+    toast.style.boxShadow =
+        "0 15px 40px rgba(0,0,0,.22)";
+    toast.style.fontSize = "14px";
+    toast.style.animation =
+        "finanzasToastIn .3s ease";
+
+    const closeButton =
+        toast.querySelector("button");
+
+    closeButton?.addEventListener(
+        "click",
+        () => toast.remove()
+    );
+
+    container.appendChild(toast);
+
+    setTimeout(() => {
+        if (toast.isConnected) {
+            toast.style.opacity = "0";
+            toast.style.transform =
+                "translateX(30px)";
+
+            toast.style.transition =
+                "all .3s ease";
+
+            setTimeout(
+                () => toast.remove(),
+                300
+            );
+        }
+    }, duration);
+}
+
+
+/* =========================================================
+   7. LOADING
+   ========================================================= */
+
+function setLoading(
+    loading,
+    ...selectors
+) {
+    const element =
+        getElement(...selectors);
+
+    if (!element) return;
+
+    if (loading) {
+        element.dataset.previousHtml =
+            element.innerHTML;
+
+        element.innerHTML = `
+            <div style="
+                display:flex;
+                align-items:center;
+                justify-content:center;
+                gap:10px;
+                padding:30px;
+                opacity:.7;
+            ">
+                <span style="
+                    width:18px;
+                    height:18px;
+                    border:2px solid currentColor;
+                    border-right-color:transparent;
+                    border-radius:50%;
+                    animation:finanzasSpin .7s linear infinite;
+                "></span>
+                <span>Cargando...</span>
+            </div>
+        `;
+    } else if (
+        element.dataset.previousHtml
+    ) {
+        element.innerHTML =
+            element.dataset.previousHtml;
+
+        delete element.dataset.previousHtml;
+    }
+}
+
+
+/* =========================================================
+   8. ESTILOS DINÁMICOS NECESARIOS
+   ========================================================= */
+
+function injectRuntimeStyles() {
+    if (
+        document.getElementById(
+            "finanzas-runtime-styles"
+        )
+    ) {
+        return;
+    }
+
+    const style =
+        document.createElement("style");
+
+    style.id =
+        "finanzas-runtime-styles";
+
+    style.textContent = `
+        @keyframes finanzasSpin {
+            to {
+                transform:rotate(360deg);
+            }
+        }
+
+        @keyframes finanzasToastIn {
+            from {
+                opacity:0;
+                transform:translateX(30px);
+            }
+
+            to {
+                opacity:1;
+                transform:translateX(0);
+            }
+        }
+
+        .finanzas-empty {
+            padding:40px 20px;
+            text-align:center;
+            opacity:.65;
+        }
+
+        .finanzas-error {
+            padding:25px;
+            text-align:center;
+            color:#b91c1c;
+        }
+
+        .status-badge {
+            display:inline-flex;
+            align-items:center;
+            gap:6px;
+            padding:5px 10px;
+            border-radius:999px;
+            font-size:12px;
+            font-weight:700;
+        }
+
+        .status-active {
+            background:rgba(34,197,94,.12);
+            color:#16a34a;
+        }
+
+        .status-inactive {
+            background:rgba(239,68,68,.12);
+            color:#dc2626;
+        }
+
+        .role-badge {
+            display:inline-flex;
+            padding:5px 10px;
+            border-radius:999px;
+            font-size:12px;
+            font-weight:700;
+            background:rgba(99,102,241,.12);
+            color:#6366f1;
+        }
+
+        .amount-positive {
+            color:#16a34a;
+            font-weight:800;
+        }
+
+        .amount-negative {
+            color:#dc2626;
+            font-weight:800;
+        }
+
+        .amount-contribution {
+            color:#7c3aed;
+            font-weight:800;
+        }
+    `;
+
+    document.head.appendChild(style);
+}
+
+
+/* =========================================================
+   9. AUTENTICACIÓN
+   ========================================================= */
 
 async function checkSession() {
+    if (!supabaseClient) {
+        showToast(
+            "Supabase no está configurado correctamente.",
+            "error"
+        );
+
+        return;
+    }
 
     try {
-
         const {
             data,
             error
-        } = await supabaseClient.auth.getSession();
+        } =
+            await supabaseClient.auth.getSession();
 
         if (error) {
-            throw error;
+            console.error(
+                "❌ Error obteniendo sesión:",
+                error
+            );
+
+            showLogin();
+
+            return;
         }
 
-        const session =
-            data?.session;
-
-        if (session?.user) {
-
+        if (data?.session?.user) {
             currentUser =
-                session.user;
+                data.session.user;
 
             console.log(
                 "👤 Sesión encontrada:",
@@ -201,14 +562,10 @@ async function checkSession() {
             );
 
             await initializeAuthenticatedApp();
-
         } else {
-
             showLogin();
         }
-
     } catch (error) {
-
         console.error(
             "❌ Error verificando sesión:",
             error
@@ -219,491 +576,237 @@ async function checkSession() {
 }
 
 
-/* =========================================================
-   7. CAMBIOS DE AUTENTICACIÓN
-========================================================= */
-
-if (supabaseClient) {
-
-    supabaseClient.auth.onAuthStateChange(
-        async (event, session) => {
-
-            console.log(
-                "🔐 Cambio de autenticación:",
-                event
-            );
-
-            if (
-                event === "SIGNED_IN" &&
-                session?.user
-            ) {
-
-                currentUser =
-                    session.user;
-
-                await initializeAuthenticatedApp();
-            }
-
-            if (
-                event === "SIGNED_OUT"
-            ) {
-
-                currentUser = null;
-                currentProfile = null;
-
-                showLogin();
-            }
-        }
-    );
-}
-
-
-/* =========================================================
-   8. LOGIN
-========================================================= */
-
-function setupLogin() {
-
-    if (!loginForm) return;
-
-    loginForm.addEventListener(
-        "submit",
-        async (event) => {
-
-            event.preventDefault();
-
-            const email =
-                loginEmail?.value
-                    .trim();
-
-            const password =
-                loginPassword?.value;
-
-            if (!email || !password) {
-
-                showToast(
-                    "Ingresa tu correo y contraseña.",
-                    "warning"
-                );
-
-                return;
-            }
-
-            setLoginLoading(true);
-
-            try {
-
-                const {
-                    data,
-                    error
-                } =
-                    await supabaseClient.auth
-                        .signInWithPassword({
-                            email,
-                            password
-                        });
-
-                if (error) {
-                    throw error;
-                }
-
-                currentUser =
-                    data.user;
-
-                console.log(
-                    "✅ Inicio de sesión exitoso:",
-                    currentUser.email
-                );
-
-                await initializeAuthenticatedApp();
-
-            } catch (error) {
-
-                console.error(
-                    "❌ Error de login:",
-                    error
-                );
-
-                showToast(
-                    getFriendlyAuthError(error),
-                    "error"
-                );
-
-            } finally {
-
-                setLoginLoading(false);
-            }
-        }
-    );
-}
-
-
-/* =========================================================
-   9. APLICACIÓN AUTENTICADA
-========================================================= */
-
-async function initializeAuthenticatedApp() {
-
-    if (!currentUser) {
-        showLogin();
-        return;
-    }
-
-    showLoadingApp();
-
-    try {
-
-        const profileLoaded =
-            await loadCurrentProfile();
-
-        if (!profileLoaded) {
-
-            showToast(
-                "No se encontró tu perfil de usuario.",
-                "error"
-            );
-
-            await supabaseClient.auth.signOut();
-
-            return;
-        }
-
-        if (
-            String(
-                currentProfile.estado || ""
-            ).toLowerCase() ===
-            "inactivo"
-        ) {
-
-            showToast(
-                "Tu cuenta está desactivada.",
-                "error"
-            );
-
-            await supabaseClient.auth.signOut();
-
-            return;
-        }
-
-        updateUserInterface();
-
-        showApp();
-
-        await loadDashboard();
-
-        if (isAdmin()) {
-            await loadUsers();
-        }
-
-        console.log(
-            "✅ Aplicación autenticada correctamente"
-        );
-
-    } catch (error) {
-
-        console.error(
-            "❌ Error inicializando aplicación:",
-            error
-        );
-
-        showToast(
-            "No se pudo cargar tu información.",
-            "error"
-        );
-    }
-}
-
-
-/* =========================================================
-   10. PERFIL
-========================================================= */
-
-async function loadCurrentProfile() {
-
-    try {
-
-        const {
-            data,
-            error
-        } =
-            await supabaseClient
-                .from("profiles")
-                .select(`
-                    id,
-                    nombre,
-                    apellido,
-                    email,
-                    usuario,
-                    rol,
-                    estado,
-                    moneda,
-                    avatar_url
-                `)
-                .eq(
-                    "id",
-                    currentUser.id
-                )
-                .maybeSingle();
-
-        if (error) {
-            throw error;
-        }
-
-        if (!data) {
-            return false;
-        }
-
-        currentProfile =
-            data;
-
-        console.log(
-            "✅ Perfil cargado:",
-            currentProfile
-        );
-
-        return true;
-
-    } catch (error) {
-
-        console.error(
-            "❌ Error cargando perfil:",
-            error
-        );
-
-        return false;
-    }
-}
-
-
-/* =========================================================
-   11. ACTUALIZAR INTERFAZ USUARIO
-========================================================= */
-
-function updateUserInterface() {
-
-    if (!currentProfile) return;
-
-    const fullName = [
-        currentProfile.nombre,
-        currentProfile.apellido
-    ]
-        .filter(Boolean)
-        .join(" ");
-
-    const displayName =
-        fullName ||
-        currentProfile.usuario ||
-        currentProfile.email ||
-        "Usuario";
-
-    const firstName =
-        currentProfile.nombre ||
-        currentProfile.usuario ||
-        "Usuario";
-
-    const role =
-        currentProfile.rol ||
-        "usuario";
-
-    const initials =
-        getInitials(displayName);
-
-
-    /* Nombre */
-
-    setText(
-        "[data-user-name]",
-        displayName
-    );
-
-    setText(
-        "#profileName",
-        displayName
-    );
-
-    setText(
-        "#welcomeName",
-        firstName
-    );
-
-    setText(
-        "#dashboardUserName",
-        firstName
-    );
-
-
-    /* Rol */
-
-    setText(
-        "[data-user-role]",
-        formatRole(role)
-    );
-
-    setText(
-        "[data-account-role]",
-        formatRole(role)
-    );
-
-    setText(
-        "#accountRole",
-        formatRole(role)
-    );
-
-
-    /* Iniciales */
-
-    setText(
-        "[data-user-initials]",
-        initials
-    );
-
-    setText(
-        "#profileInitials",
-        initials
-    );
-
-    setText(
-        "#topbarInitials",
-        initials
-    );
-
-
-    /* Mostrar administración */
-
-    const adminMenu =
-        document.getElementById(
-            "adminMenu"
-        );
-
-    if (adminMenu) {
-        adminMenu.style.display =
-            isAdmin()
-                ? ""
-                : "none";
-    }
-}
-
-
-/* =========================================================
-   12. PANTALLAS
-========================================================= */
-
 function showLogin() {
+    currentUser = null;
+    currentProfile = null;
 
     if (loginScreen) {
+        loginScreen.style.display = "";
         loginScreen.classList.remove(
             "hidden"
         );
-
-        loginScreen.style.display =
-            "";
     }
 
     if (appContainer) {
-        appContainer.classList.add(
-            "hidden"
-        );
-
-        appContainer.style.display =
-            "none";
-    }
-}
-
-
-function showLoadingApp() {
-
-    if (loginScreen) {
-        loginScreen.style.display =
-            "none";
-    }
-
-    if (appContainer) {
-        appContainer.classList.remove(
-            "hidden"
-        );
-
-        appContainer.style.display =
-            "";
+        appContainer.style.display = "none";
+        appContainer.classList.add("hidden");
     }
 }
 
 
 function showApp() {
-
     if (loginScreen) {
-        loginScreen.style.display =
-            "none";
+        loginScreen.style.display = "none";
+        loginScreen.classList.add("hidden");
     }
 
     if (appContainer) {
-        appContainer.classList.remove(
-            "hidden"
-        );
-
-        appContainer.style.display =
-            "";
+        appContainer.style.display = "";
+        appContainer.classList.remove("hidden");
     }
 }
 
 
-/* =========================================================
-   13. LOGIN LOADING
-========================================================= */
+async function handleLogin(event) {
+    event.preventDefault();
 
-function setLoginLoading(loading) {
-
-    const button =
-        document.getElementById(
-            "loginSubmit"
+    if (!supabaseClient) {
+        showToast(
+            "Supabase no está disponible.",
+            "error"
         );
 
-    if (!button) return;
+        return;
+    }
 
-    if (loading) {
+    const email =
+        loginEmail?.value?.trim();
 
-        button.disabled = true;
+    const password =
+        loginPassword?.value;
 
-        button.dataset.originalText =
-            button.innerHTML;
+    if (!email || !password) {
+        showToast(
+            "Ingresa tu correo y contraseña.",
+            "warning"
+        );
 
-        button.innerHTML = `
-            <span class="button-content">
-                <i class="fa-solid fa-circle-notch fa-spin"></i>
-                Iniciando sesión...
-            </span>
-        `;
+        return;
+    }
 
-    } else {
+    const submitButton =
+        loginForm?.querySelector(
+            'button[type="submit"]'
+        );
 
-        button.disabled = false;
+    const originalText =
+        submitButton?.innerHTML;
 
-        if (
-            button.dataset.originalText
-        ) {
-            button.innerHTML =
-                button.dataset.originalText;
+    if (submitButton) {
+        submitButton.disabled = true;
+
+        submitButton.innerHTML =
+            "Iniciando sesión...";
+    }
+
+    try {
+        const {
+            data,
+            error
+        } =
+            await supabaseClient.auth.signInWithPassword(
+                {
+                    email,
+                    password
+                }
+            );
+
+        if (error) {
+            console.error(
+                "❌ Error de login:",
+                error
+            );
+
+            showToast(
+                getAuthErrorMessage(
+                    error
+                ),
+                "error"
+            );
+
+            return;
+        }
+
+        currentUser =
+            data?.user || null;
+
+        if (!currentUser) {
+            showToast(
+                "No se pudo obtener el usuario.",
+                "error"
+            );
+
+            return;
+        }
+
+        showToast(
+            "Bienvenido a FinanzasPersonales.",
+            "success"
+        );
+
+        await initializeAuthenticatedApp();
+    } catch (error) {
+        console.error(
+            "❌ Error inesperado en login:",
+            error
+        );
+
+        showToast(
+            "Ocurrió un error al iniciar sesión.",
+            "error"
+        );
+    } finally {
+        if (submitButton) {
+            submitButton.disabled = false;
+
+            submitButton.innerHTML =
+                originalText ||
+                "Iniciar sesión";
         }
     }
 }
 
 
-/* =========================================================
-   14. PASSWORD
-========================================================= */
-
-function setupPasswordToggle() {
+function getAuthErrorMessage(error) {
+    const message =
+        String(
+            error?.message || ""
+        ).toLowerCase();
 
     if (
-        !passwordToggle ||
-        !loginPassword
+        message.includes(
+            "invalid login credentials"
+        )
     ) {
+        return "Correo o contraseña incorrectos.";
+    }
+
+    if (
+        message.includes(
+            "email not confirmed"
+        )
+    ) {
+        return "Tu correo todavía no ha sido confirmado.";
+    }
+
+    if (
+        message.includes(
+            "too many requests"
+        )
+    ) {
+        return "Demasiados intentos. Espera unos minutos.";
+    }
+
+    return (
+        error?.message ||
+        "No fue posible iniciar sesión."
+    );
+}
+
+
+async function logout() {
+    if (!supabaseClient) return;
+
+    try {
+        const {
+            error
+        } =
+            await supabaseClient.auth.signOut();
+
+        if (error) {
+            console.error(
+                "❌ Error cerrando sesión:",
+                error
+            );
+
+            showToast(
+                "No se pudo cerrar la sesión.",
+                "error"
+            );
+
+            return;
+        }
+
+        currentUser = null;
+        currentProfile = null;
+
+        showLogin();
+
+        showToast(
+            "Sesión cerrada correctamente.",
+            "success"
+        );
+    } catch (error) {
+        console.error(
+            "❌ Error logout:",
+            error
+        );
+    }
+}
+
+
+/* =========================================================
+   10. CAMBIO DE CONTRASEÑA VISUAL
+   ========================================================= */
+
+function setupPasswordToggle() {
+    if (!passwordToggle || !loginPassword) {
         return;
     }
 
     passwordToggle.addEventListener(
         "click",
         () => {
-
             const isPassword =
                 loginPassword.type ===
                 "password";
@@ -719,16 +822,10 @@ function setupPasswordToggle() {
                 );
 
             if (icon) {
-
-                icon.classList.toggle(
-                    "fa-eye",
-                    !isPassword
-                );
-
-                icon.classList.toggle(
-                    "fa-eye-slash",
+                icon.className =
                     isPassword
-                );
+                        ? "fa-solid fa-eye-slash"
+                        : "fa-solid fa-eye";
             }
         }
     );
@@ -736,31 +833,350 @@ function setupPasswordToggle() {
 
 
 /* =========================================================
-   15. NAVEGACIÓN
-========================================================= */
+   11. PERFIL
+   ========================================================= */
 
-function setupNavigation() {
+async function loadCurrentProfile() {
+    if (!currentUser?.id) {
+        return null;
+    }
+
+    try {
+        const {
+            data,
+            error
+        } =
+            await supabaseClient
+                .from("profiles")
+                .select("*")
+                .eq(
+                    "id",
+                    currentUser.id
+                )
+                .maybeSingle();
+
+        if (error) {
+            console.error(
+                "❌ Error cargando perfil:",
+                error
+            );
+
+            return null;
+        }
+
+        if (!data) {
+            console.warn(
+                "⚠️ No existe perfil para:",
+                currentUser.email
+            );
+
+            return null;
+        }
+
+        currentProfile = data;
+
+        console.log(
+            "✅ Perfil cargado:",
+            currentProfile
+        );
+
+        return data;
+    } catch (error) {
+        console.error(
+            "❌ Error perfil:",
+            error
+        );
+
+        return null;
+    }
+}
+
+
+function isAdmin() {
+    const role =
+        String(
+            currentProfile?.rol || ""
+        )
+            .trim()
+            .toLowerCase();
+
+    return [
+        "admin",
+        "administrador",
+        "superadmin"
+    ].includes(role);
+}
+
+
+function isActiveProfile() {
+    const estado =
+        String(
+            currentProfile?.estado ??
+                "activo"
+        )
+            .trim()
+            .toLowerCase();
+
+    return ![
+        "inactivo",
+        "disabled",
+        "suspendido",
+        "bloqueado"
+    ].includes(estado);
+}
+
+
+/* =========================================================
+   12. INICIALIZACIÓN APP
+   ========================================================= */
+
+async function initializeAuthenticatedApp() {
+    if (!currentUser) return;
+
+    const profile =
+        await loadCurrentProfile();
+
+    if (!profile) {
+        showToast(
+            "No encontramos tu perfil en el sistema.",
+            "error"
+        );
+
+        await supabaseClient.auth.signOut();
+
+        showLogin();
+
+        return;
+    }
+
+    if (!isActiveProfile()) {
+        showToast(
+            "Tu cuenta está desactivada. Contacta al administrador.",
+            "error"
+        );
+
+        await supabaseClient.auth.signOut();
+
+        showLogin();
+
+        return;
+    }
+
+    showApp();
+
+    updateUserInterface();
+
+    setupAdminVisibility();
+
+    await loadDashboard();
+
+    if (isAdmin()) {
+        await loadUsers();
+    }
+
+    console.log(
+        "🚀 FinanzasPersonales - JavaScript cargado correctamente"
+    );
+}
+
+
+/* =========================================================
+   13. INTERFAZ DEL USUARIO
+   ========================================================= */
+
+function updateUserInterface() {
+    if (!currentProfile) return;
+
+    const nombre =
+        currentProfile.nombre ||
+        currentProfile.usuario ||
+        currentUser?.email?.split("@")[0] ||
+        "Usuario";
+
+    const apellido =
+        currentProfile.apellido || "";
+
+    const fullName =
+        `${nombre} ${apellido}`.trim();
+
+    const role =
+        currentProfile.rol ||
+        "Usuario";
+
+    const email =
+        currentProfile.email ||
+        currentUser?.email ||
+        "";
+
+    const initials =
+        getInitials(
+            nombre,
+            apellido
+        );
+
+    /* Data attributes */
 
     document
         .querySelectorAll(
-            "[data-section]"
+            "[data-user-name]"
         )
-        .forEach((item) => {
+        .forEach(
+            element =>
+                (element.textContent =
+                    fullName)
+        );
 
+    document
+        .querySelectorAll(
+            "[data-user-role]"
+        )
+        .forEach(
+            element =>
+                (element.textContent =
+                    role)
+        );
+
+    document
+        .querySelectorAll(
+            "[data-user-email]"
+        )
+        .forEach(
+            element =>
+                (element.textContent =
+                    email)
+        );
+
+    document
+        .querySelectorAll(
+            "[data-user-initials]"
+        )
+        .forEach(
+            element =>
+                (element.textContent =
+                    initials)
+        );
+
+    document
+        .querySelectorAll(
+            "[data-welcome-name]"
+        )
+        .forEach(
+            element =>
+                (element.textContent =
+                    nombre)
+        );
+
+    document
+        .querySelectorAll(
+            "[data-account-role]"
+        )
+        .forEach(
+            element =>
+                (element.textContent =
+                    role)
+        );
+
+    /* IDs reales del HTML */
+
+    setText(
+        fullName,
+        "#profileName"
+    );
+
+    setText(
+        role,
+        "#accountRole"
+    );
+
+    setText(
+        nombre,
+        "#welcomeName"
+    );
+
+    setText(
+        fullName,
+        "#dashboardUserName"
+    );
+
+    setText(
+        initials,
+        "#profileInitials",
+        "#topbarInitials"
+    );
+
+    setText(
+        email,
+        "#profileEmail"
+    );
+
+    /* Avatar */
+
+    const avatarUrl =
+        currentProfile.avatar_url;
+
+    document
+        .querySelectorAll(
+            "[data-user-avatar], #profileAvatar, #topbarAvatar"
+        )
+        .forEach(element => {
+            if (
+                element.tagName ===
+                "IMG"
+            ) {
+                if (avatarUrl) {
+                    element.src =
+                        avatarUrl;
+                } else {
+                    element.style.display =
+                        "none";
+                }
+            }
+        });
+}
+
+
+/* =========================================================
+   14. ADMIN
+   ========================================================= */
+
+function setupAdminVisibility() {
+    const adminElements =
+        document.querySelectorAll(
+            "[data-admin-only], #adminMenu"
+        );
+
+    adminElements.forEach(
+        element => {
+            element.style.display =
+                isAdmin()
+                    ? ""
+                    : "none";
+        }
+    );
+}
+
+
+/* =========================================================
+   15. NAVEGACIÓN
+   ========================================================= */
+
+function setupNavigation() {
+    document
+        .querySelectorAll("[data-section]")
+        .forEach(item => {
             item.addEventListener(
                 "click",
-                async (event) => {
-
+                event => {
                     event.preventDefault();
 
                     const section =
                         item.dataset.section;
 
-                    if (!section) return;
-
-                    await showSection(
-                        section
-                    );
+                    if (section) {
+                        showSection(
+                            section
+                        );
+                    }
 
                     closeSidebar();
                 }
@@ -769,178 +1185,182 @@ function setupNavigation() {
 }
 
 
-async function showSection(
-    sectionName
-) {
+async function showSection(section) {
+    if (!section) return;
 
-    if (!sectionName) return;
+    currentSection = section;
 
-    const target =
-        document.getElementById(
-            sectionName
-        );
+    document
+        .querySelectorAll(".page-section")
+        .forEach(page => {
+            const pageId =
+                page.id;
 
-    if (!target) {
+            const matches =
+                pageId === section ||
+                pageId ===
+                    `${section}Section`;
 
-        console.warn(
-            "⚠️ Sección no encontrada:",
-            sectionName
-        );
-
-        return;
-    }
-
-
-    /* Ocultar */
-
-    pageSections.forEach(
-        (section) => {
-            section.classList.remove(
-                "active"
+            page.classList.toggle(
+                "active",
+                matches
             );
-        }
-    );
 
-
-    /* Mostrar */
-
-    target.classList.add(
-        "active"
-    );
-
-
-    /* Sidebar */
+            page.style.display =
+                matches
+                    ? ""
+                    : "none";
+        });
 
     document
         .querySelectorAll(
-            ".sidebar .nav-item[data-section]"
+            "[data-section]"
         )
-        .forEach((item) => {
-
+        .forEach(item => {
             item.classList.toggle(
                 "active",
                 item.dataset.section ===
-                sectionName
+                    section
             );
         });
 
-
-    updatePageTitle(
-        sectionName
+    updatePageHeader(
+        section
     );
 
+    if (section === "dashboard") {
+        await loadDashboard();
+    }
 
-    /* Cargar datos */
+    if (
+        section === "reportes" ||
+        section === "reports"
+    ) {
+        await loadReports();
+    }
 
-    try {
+    if (
+        section === "metas" ||
+        section === "goals"
+    ) {
+        await loadGoalsPage();
+    }
 
-        switch (sectionName) {
-
-            case "dashboard":
-                await loadDashboard();
-                break;
-
-            case "metas":
-                await loadGoalsPage();
-                break;
-
-            case "reportes":
-                await loadReports();
-                break;
-
-            case "usuarios":
-                if (isAdmin()) {
-                    await loadUsers();
-                }
-                break;
+    if (
+        section === "usuarios" ||
+        section === "users" ||
+        section === "admin"
+    ) {
+        if (isAdmin()) {
+            await loadUsers();
         }
-
-    } catch (error) {
-
-        console.error(
-            "❌ Error cargando sección:",
-            error
-        );
     }
 }
 
 
-/* =========================================================
-   16. TÍTULO
-========================================================= */
+function updatePageHeader(section) {
+    const pages = {
+        dashboard: {
+            eyebrow: "Resumen financiero",
+            title: "Dashboard"
+        },
 
-function updatePageTitle(
-    sectionName
-) {
+        ingresos: {
+            eyebrow: "Movimientos",
+            title: "Ingresos"
+        },
 
-    const titles = {
+        salidas: {
+            eyebrow: "Movimientos",
+            title: "Salidas"
+        },
 
-        dashboard: [
-            "RESUMEN",
-            "Dashboard"
-        ],
+        aportes: {
+            eyebrow: "Movimientos",
+            title: "Aportes"
+        },
 
-        ingresos: [
-            "FINANZAS",
-            "Ingresos"
-        ],
+        metas: {
+            eyebrow: "Planificación",
+            title: "Metas"
+        },
 
-        salidas: [
-            "FINANZAS",
-            "Salidas"
-        ],
+        reportes: {
+            eyebrow: "Análisis",
+            title: "Reportes"
+        },
 
-        aportes: [
-            "AHORRO",
-            "Aportes"
-        ],
+        reports: {
+            eyebrow: "Análisis",
+            title: "Reportes"
+        },
 
-        metas: [
-            "OBJETIVOS",
-            "Mis metas"
-        ],
+        usuarios: {
+            eyebrow: "Administración",
+            title: "Usuarios"
+        },
 
-        reportes: [
-            "ANÁLISIS",
-            "Reportes"
-        ],
+        users: {
+            eyebrow: "Administración",
+            title: "Usuarios"
+        },
 
-        usuarios: [
-            "ADMINISTRACIÓN",
-            "Usuarios"
-        ]
+        admin: {
+            eyebrow: "Administración",
+            title: "Usuarios"
+        }
     };
 
-    const info =
-        titles[sectionName] ||
-        [
-            "FINANZAS",
-            "FinanzasPersonales"
-        ];
+    const page =
+        pages[section] ||
+        pages.dashboard;
 
     setText(
-        "#pageEyebrow",
-        info[0]
-    );
-
-    setText(
-        "#pageTitle",
-        info[1]
-    );
-
-    setText(
+        page.title,
         "[data-page-title]",
-        info[1]
+        "#pageTitle"
+    );
+
+    setText(
+        page.eyebrow,
+        "#pageEyebrow"
     );
 }
 
 
 /* =========================================================
-   17. SIDEBAR
-========================================================= */
+   16. SIDEBAR
+   ========================================================= */
+
+function openSidebar() {
+    sidebar?.classList.add("open");
+
+    sidebarOverlay?.classList.add(
+        "active"
+    );
+
+    document.body.classList.add(
+        "sidebar-open"
+    );
+}
+
+
+function closeSidebar() {
+    sidebar?.classList.remove(
+        "open"
+    );
+
+    sidebarOverlay?.classList.remove(
+        "active"
+    );
+
+    document.body.classList.remove(
+        "sidebar-open"
+    );
+}
+
 
 function setupSidebar() {
-
     mobileMenuButton?.addEventListener(
         "click",
         openSidebar
@@ -958,302 +1378,852 @@ function setupSidebar() {
 }
 
 
-function openSidebar() {
-
-    sidebar?.classList.add(
-        "open"
-    );
-
-    sidebarOverlay?.classList.add(
-        "active"
-    );
-
-    document.body.classList.add(
-        "sidebar-open"
-    );
-}
-
-
-function closeSidebar() {
-
-    sidebar?.classList.remove(
-        "open"
-    );
-
-    sidebarOverlay?.classList.remove(
-        "active"
-    );
-
-    document.body.classList.remove(
-        "sidebar-open"
-    );
-}
-
-
 /* =========================================================
-   18. LOGOUT
-========================================================= */
+   17. TEMA
+   ========================================================= */
 
-function setupLogout() {
+function setupTheme() {
+    const button =
+        getElement(
+            "[data-theme-toggle]",
+            "#themeToggle"
+        );
 
-    if (!logoutButton) return;
+    if (!button) return;
 
-    logoutButton.addEventListener(
+    const savedTheme =
+        localStorage.getItem(
+            "finanzas-theme"
+        );
+
+    if (savedTheme === "dark") {
+        document.documentElement.classList.add(
+            "dark"
+        );
+
+        document.body.classList.add(
+            "dark"
+        );
+    }
+
+    updateThemeIcon();
+
+    button.addEventListener(
         "click",
-        async (event) => {
-
-            event.preventDefault();
-
-            try {
-
-                const {
-                    error
-                } =
-                    await supabaseClient
-                        .auth
-                        .signOut();
-
-                if (error) {
-                    throw error;
-                }
-
-                currentUser = null;
-                currentProfile = null;
-
-                closeSidebar();
-
-                showLogin();
-
-                showToast(
-                    "Sesión cerrada correctamente.",
-                    "success"
+        () => {
+            const isDark =
+                document.documentElement.classList.toggle(
+                    "dark"
                 );
 
-            } catch (error) {
+            document.body.classList.toggle(
+                "dark",
+                isDark
+            );
 
-                console.error(
-                    "❌ Error cerrando sesión:",
-                    error
-                );
+            localStorage.setItem(
+                "finanzas-theme",
+                isDark
+                    ? "dark"
+                    : "light"
+            );
 
-                showToast(
-                    "No se pudo cerrar la sesión.",
-                    "error"
-                );
-            }
+            updateThemeIcon();
         }
     );
 }
 
 
-/* =========================================================
-   19. DASHBOARD
-========================================================= */
+function updateThemeIcon() {
+    const isDark =
+        document.documentElement.classList.contains(
+            "dark"
+        );
 
-async function loadDashboard() {
-
-    if (!currentUser) return;
-
-    try {
-
-        const [
-            ingresos,
-            salidas,
-            aportes
-        ] = await Promise.all([
-
-            getTransactions(
-                "ingresos"
-            ),
-
-            getTransactions(
-                "salidas"
-            ),
-
-            getTransactions(
-                "aportes"
-            )
-        ]);
-
-
-        const totalIngresos =
-            sumAmounts(
-                ingresos
-            );
-
-        const totalSalidas =
-            sumAmounts(
-                salidas
-            );
-
-        const totalAportes =
-            sumAmounts(
-                aportes
-            );
-
-        const balance =
-            totalIngresos -
-            totalSalidas -
-            totalAportes;
-
-
-        updateDashboardNumbers({
-
-            totalIngresos,
-
-            totalSalidas,
-
-            totalAportes,
-
-            balance
+    document
+        .querySelectorAll(
+            "[data-theme-icon]"
+        )
+        .forEach(icon => {
+            icon.className =
+                isDark
+                    ? "fa-solid fa-sun"
+                    : "fa-solid fa-moon";
         });
-
-
-        await loadFlowChart(
-            ingresos,
-            salidas,
-            aportes
-        );
-
-
-        await loadRecentActivity(
-            ingresos,
-            salidas,
-            aportes
-        );
-
-
-        await loadGoalsPreview();
-
-    } catch (error) {
-
-        console.error(
-            "❌ Error cargando dashboard:",
-            error
-        );
-    }
 }
 
 
 /* =========================================================
-   20. TRANSACCIONES
-========================================================= */
+   18. CONSULTAS DE MOVIMIENTOS
+   ========================================================= */
 
 async function getTransactions(
     tableName
 ) {
-
     if (!currentUser?.id) {
-        return [];
-    }
-
-    const {
-        data,
-        error
-    } =
-        await supabaseClient
-            .from(tableName)
-            .select("*")
-            .eq(
-                "user_id",
-                currentUser.id
-            )
-            .order(
-                "created_at",
-                {
-                    ascending: false
-                }
-            );
-
-    if (error) {
-
-        console.error(
-            `❌ Error cargando ${tableName}:`,
-            error
+        console.warn(
+            `⚠️ No hay usuario autenticado para cargar ${tableName}`
         );
 
         return [];
     }
 
-    return data || [];
+    try {
+        const {
+            data,
+            error
+        } =
+            await supabaseClient
+                .from(tableName)
+                .select("*")
+                .eq(
+                    "user_id",
+                    currentUser.id
+                )
+                .order(
+                    "created_at",
+                    {
+                        ascending: false
+                    }
+                );
+
+        if (error) {
+            console.error(
+                `❌ Error cargando ${tableName}:`,
+                error
+            );
+
+            return [];
+        }
+
+        return data || [];
+    } catch (error) {
+        console.error(
+            `❌ Error inesperado cargando ${tableName}:`,
+            error
+        );
+
+        return [];
+    }
+}
+
+
+async function getGoals() {
+    if (!currentUser?.id) {
+        return [];
+    }
+
+    try {
+        const {
+            data,
+            error
+        } =
+            await supabaseClient
+                .from("metas")
+                .select("*")
+                .eq(
+                    "user_id",
+                    currentUser.id
+                )
+                .order(
+                    "created_at",
+                    {
+                        ascending: false
+                    }
+                );
+
+        if (error) {
+            console.error(
+                "❌ Error cargando metas:",
+                error
+            );
+
+            return [];
+        }
+
+        return data || [];
+    } catch (error) {
+        console.error(
+            "❌ Error metas:",
+            error
+        );
+
+        return [];
+    }
 }
 
 
 /* =========================================================
-   21. NÚMEROS
-========================================================= */
+   19. DASHBOARD
+   ========================================================= */
 
-function updateDashboardNumbers({
-    totalIngresos,
-    totalSalidas,
-    totalAportes,
-    balance
-}) {
+async function loadDashboard() {
+    if (!currentUser) return;
 
-    setText(
-        "#incomeValue",
-        formatMoney(
-            totalIngresos
-        )
-    );
+    try {
+        const [
+            ingresos,
+            salidas,
+            aportes,
+            metas
+        ] = await Promise.all([
+            getTransactions("ingresos"),
+            getTransactions("salidas"),
+            getTransactions("aportes"),
+            getGoals()
+        ]);
 
-    setText(
-        "#expenseValue",
-        formatMoney(
-            totalSalidas
-        )
-    );
+        dashboardCache = {
+            ingresos,
+            salidas,
+            aportes,
+            metas
+        };
 
-    setText(
-        "#contributionValue",
-        formatMoney(
-            totalAportes
-        )
-    );
+        updateDashboardNumbers();
 
-    setText(
-        "#balanceValue",
-        formatMoney(
-            balance
-        )
-    );
+        renderGoalsPreview();
+
+        renderRecentActivity();
+
+        renderFlowChart();
+
+        renderExpenseChart();
+
+        console.log(
+            "📊 Dashboard actualizado"
+        );
+    } catch (error) {
+        console.error(
+            "❌ Error dashboard:",
+            error
+        );
+
+        showToast(
+            "No se pudo actualizar el dashboard.",
+            "error"
+        );
+    }
 }
 
 
 /* =========================================================
-   22. GRÁFICO
-========================================================= */
+   20. NÚMEROS DASHBOARD
+   ========================================================= */
 
-async function loadFlowChart(
-    ingresos,
-    salidas,
-    aportes
+function calculateTotal(
+    rows
 ) {
+    return rows.reduce(
+        (total, item) =>
+            total +
+            Number(
+                item.monto ??
+                    item.amount ??
+                    0
+            ),
+        0
+    );
+}
 
+
+function updateDashboardNumbers() {
+    const income =
+        calculateTotal(
+            dashboardCache.ingresos
+        );
+
+    const expenses =
+        calculateTotal(
+            dashboardCache.salidas
+        );
+
+    const contributions =
+        calculateTotal(
+            dashboardCache.aportes
+        );
+
+    const balance =
+        income -
+        expenses -
+        contributions;
+
+    setText(
+        formatMoney(income),
+        "[data-total-income]",
+        "#incomeValue"
+    );
+
+    setText(
+        formatMoney(expenses),
+        "[data-total-expenses]",
+        "#expenseValue"
+    );
+
+    setText(
+        formatMoney(contributions),
+        "[data-total-contributions]",
+        "#contributionValue"
+    );
+
+    setText(
+        formatMoney(balance),
+        "[data-balance]",
+        "#balanceValue"
+    );
+
+    /* Porcentajes */
+
+    const totalMovement =
+        income +
+        expenses +
+        contributions;
+
+    const expensePercentage =
+        totalMovement
+            ? (expenses /
+                  totalMovement) *
+              100
+            : 0;
+
+    const incomePercentage =
+        totalMovement
+            ? (income /
+                  totalMovement) *
+              100
+            : 0;
+
+    setText(
+        `${expensePercentage.toFixed(1)}%`,
+        "#expensePercentage",
+        "[data-expense-percentage]"
+    );
+
+    setText(
+        `${incomePercentage.toFixed(1)}%`,
+        "#incomePercentage",
+        "[data-income-percentage]"
+    );
+}
+
+
+/* =========================================================
+   21. ACTIVIDAD RECIENTE
+   ========================================================= */
+
+function getTransactionConcept(
+    item
+) {
+    return (
+        item.concepto ||
+        item.nombre ||
+        item.titulo ||
+        item.descripcion ||
+        item.categoria ||
+        "Movimiento"
+    );
+}
+
+
+function getTransactionDate(
+    item
+) {
+    return (
+        item.fecha ||
+        item.fecha_cita ||
+        item.created_at ||
+        null
+    );
+}
+
+
+function renderRecentActivity() {
+    const container =
+        getElement(
+            "[data-recent-activity]",
+            "#recentActivity",
+            "#recent-activity"
+        );
+
+    if (!container) return;
+
+    const income =
+        dashboardCache.ingresos.map(
+            item => ({
+                ...item,
+                _type: "income"
+            })
+        );
+
+    const expenses =
+        dashboardCache.salidas.map(
+            item => ({
+                ...item,
+                _type: "expense"
+            })
+        );
+
+    const contributions =
+        dashboardCache.aportes.map(
+            item => ({
+                ...item,
+                _type: "contribution"
+            })
+        );
+
+    const activities = [
+        ...income,
+        ...expenses,
+        ...contributions
+    ]
+        .sort(
+            (a, b) =>
+                new Date(
+                    getTransactionDate(
+                        b
+                    )
+                ) -
+                new Date(
+                    getTransactionDate(
+                        a
+                    )
+                )
+        )
+        .slice(0, 8);
+
+    if (!activities.length) {
+        container.innerHTML = `
+            <div class="finanzas-empty">
+                <div style="font-size:32px;margin-bottom:10px;">
+                    📊
+                </div>
+                <strong>Aún no hay movimientos</strong>
+                <p>Cuando registres movimientos aparecerán aquí.</p>
+            </div>
+        `;
+
+        return;
+    }
+
+    container.innerHTML =
+        activities
+            .map(item => {
+                const amount =
+                    Number(
+                        item.monto || 0
+                    );
+
+                const type =
+                    item._type;
+
+                const isIncome =
+                    type === "income";
+
+                const isContribution =
+                    type ===
+                    "contribution";
+
+                const amountClass =
+                    isIncome
+                        ? "amount-positive"
+                        : isContribution
+                        ? "amount-contribution"
+                        : "amount-negative";
+
+                const prefix =
+                    isIncome
+                        ? "+"
+                        : "-";
+
+                const label =
+                    isIncome
+                        ? "Ingreso"
+                        : isContribution
+                        ? "Aporte"
+                        : "Salida";
+
+                const icon =
+                    isIncome
+                        ? "fa-arrow-down"
+                        : isContribution
+                        ? "fa-piggy-bank"
+                        : "fa-arrow-up";
+
+                return `
+                    <div class="activity-item">
+                        <div class="activity-icon">
+                            <i class="fa-solid ${icon}"></i>
+                        </div>
+
+                        <div class="activity-content">
+                            <strong>
+                                ${escapeHTML(
+                                    getTransactionConcept(
+                                        item
+                                    )
+                                )}
+                            </strong>
+
+                            <small>
+                                ${label} ·
+                                ${formatDate(
+                                    getTransactionDate(
+                                        item
+                                    )
+                                )}
+                            </small>
+                        </div>
+
+                        <div class="${amountClass}">
+                            ${prefix}
+                            ${formatMoney(
+                                amount
+                            )}
+                        </div>
+                    </div>
+                `;
+            })
+            .join("");
+}
+
+
+/* =========================================================
+   22. METAS - PREVIEW
+   ========================================================= */
+
+function getGoalName(goal) {
+    return (
+        goal.nombre ||
+        goal.titulo ||
+        goal.meta ||
+        "Meta financiera"
+    );
+}
+
+
+function getGoalTarget(goal) {
+    return Number(
+        goal.monto_objetivo ??
+            goal.objetivo ??
+            goal.meta ??
+            0
+    );
+}
+
+
+function getGoalCurrent(goal) {
+    return Number(
+        goal.monto_actual ??
+            goal.actual ??
+            goal.ahorrado ??
+            0
+    );
+}
+
+
+function getGoalPercentage(goal) {
+    const target =
+        getGoalTarget(goal);
+
+    const current =
+        getGoalCurrent(goal);
+
+    if (!target) return 0;
+
+    return Math.min(
+        100,
+        Math.max(
+            0,
+            (current / target) *
+                100
+        )
+    );
+}
+
+
+function renderGoalsPreview() {
+    const container =
+        getElement(
+            "[data-goals-preview]",
+            "#goalsPreview",
+            "#goals-preview"
+        );
+
+    if (!container) return;
+
+    const goals =
+        dashboardCache.metas.slice(
+            0,
+            3
+        );
+
+    if (!goals.length) {
+        container.innerHTML = `
+            <div class="finanzas-empty">
+                <div style="font-size:32px;margin-bottom:10px;">
+                    🎯
+                </div>
+
+                <strong>No tienes metas todavía</strong>
+
+                <p>
+                    Crea una meta para comenzar a planificar.
+                </p>
+            </div>
+        `;
+
+        return;
+    }
+
+    container.innerHTML =
+        goals
+            .map(renderGoalCard)
+            .join("");
+}
+
+
+function renderGoalCard(goal) {
+    const target =
+        getGoalTarget(goal);
+
+    const current =
+        getGoalCurrent(goal);
+
+    const percentage =
+        getGoalPercentage(goal);
+
+    return `
+        <div class="goal-card">
+
+            <div class="goal-header">
+                <strong>
+                    ${escapeHTML(
+                        getGoalName(
+                            goal
+                        )
+                    )}
+                </strong>
+
+                <span>
+                    ${percentage.toFixed(
+                        0
+                    )}%
+                </span>
+            </div>
+
+            <div class="goal-progress">
+                <div
+                    class="goal-progress-bar"
+                    style="
+                        width:${percentage}%;
+                    "
+                ></div>
+            </div>
+
+            <div class="goal-footer">
+                <span>
+                    ${formatMoney(
+                        current
+                    )}
+                </span>
+
+                <span>
+                    de
+                    ${formatMoney(
+                        target
+                    )}
+                </span>
+            </div>
+
+        </div>
+    `;
+}
+
+
+/* =========================================================
+   23. METAS - PÁGINA
+   ========================================================= */
+
+async function loadGoalsPage() {
+    const container =
+        getElement(
+            "[data-goals-list]",
+            "#goalsPageContainer",
+            "#goals-list"
+        );
+
+    if (!container) return;
+
+    const goals =
+        await getGoals();
+
+    if (!goals.length) {
+        container.innerHTML = `
+            <div class="finanzas-empty">
+                <div style="font-size:42px;">
+                    🎯
+                </div>
+
+                <h3>No tienes metas creadas</h3>
+
+                <p>
+                    Tus objetivos financieros aparecerán aquí.
+                </p>
+            </div>
+        `;
+
+        return;
+    }
+
+    container.innerHTML =
+        goals
+            .map(goal => {
+                const target =
+                    getGoalTarget(
+                        goal
+                    );
+
+                const current =
+                    getGoalCurrent(
+                        goal
+                    );
+
+                const percentage =
+                    getGoalPercentage(
+                        goal
+                    );
+
+                const remaining =
+                    Math.max(
+                        0,
+                        target -
+                            current
+                    );
+
+                return `
+                    <div class="goal-card">
+
+                        <div class="goal-header">
+                            <div>
+                                <h3>
+                                    ${escapeHTML(
+                                        getGoalName(
+                                            goal
+                                        )
+                                    )}
+                                </h3>
+
+                                <small>
+                                    ${escapeHTML(
+                                        goal.descripcion ||
+                                            ""
+                                    )}
+                                </small>
+                            </div>
+
+                            <strong>
+                                ${percentage.toFixed(
+                                    0
+                                )}%
+                            </strong>
+                        </div>
+
+                        <div class="goal-progress">
+                            <div
+                                class="goal-progress-bar"
+                                style="
+                                    width:${percentage}%;
+                                "
+                            ></div>
+                        </div>
+
+                        <div class="goal-footer">
+
+                            <span>
+                                Ahorrado:
+                                <strong>
+                                    ${formatMoney(
+                                        current
+                                    )}
+                                </strong>
+                            </span>
+
+                            <span>
+                                Faltan:
+                                <strong>
+                                    ${formatMoney(
+                                        remaining
+                                    )}
+                                </strong>
+                            </span>
+
+                            <span>
+                                Objetivo:
+                                <strong>
+                                    ${formatMoney(
+                                        target
+                                    )}
+                                </strong>
+                            </span>
+
+                        </div>
+
+                    </div>
+                `;
+            })
+            .join("");
+}
+
+
+/* =========================================================
+   24. GRÁFICO FLUJO
+   ========================================================= */
+
+function renderFlowChart() {
     const canvas =
         document.getElementById(
             "flowChart"
         );
 
+    if (!canvas) return;
+
     if (
-        !canvas ||
-        !window.Chart
+        typeof Chart ===
+        "undefined"
     ) {
+        console.warn(
+            "⚠️ Chart.js no está cargado."
+        );
+
         return;
     }
 
-    if (flowChart) {
-        flowChart.destroy();
+    const income =
+        calculateTotal(
+            dashboardCache.ingresos
+        );
+
+    const expenses =
+        calculateTotal(
+            dashboardCache.salidas
+        );
+
+    const contributions =
+        calculateTotal(
+            dashboardCache.aportes
+        );
+
+    if (flowChartInstance) {
+        flowChartInstance.destroy();
     }
 
-    flowChart =
+    flowChartInstance =
         new Chart(
-            canvas,
+            canvas.getContext("2d"),
             {
                 type: "doughnut",
 
                 data: {
-
                     labels: [
                         "Ingresos",
                         "Salidas",
@@ -1263,53 +2233,35 @@ async function loadFlowChart(
                     datasets: [
                         {
                             data: [
-                                sumAmounts(
-                                    ingresos
-                                ),
-
-                                sumAmounts(
-                                    salidas
-                                ),
-
-                                sumAmounts(
-                                    aportes
-                                )
+                                income,
+                                expenses,
+                                contributions
                             ]
                         }
                     ]
                 },
 
                 options: {
-
                     responsive: true,
 
-                    maintainAspectRatio:
-                        false,
+                    maintainAspectRatio: false,
 
                     plugins: {
-
                         legend: {
-                            position:
-                                "bottom"
+                            position: "bottom"
                         },
 
                         tooltip: {
-
                             callbacks: {
-
                                 label:
-                                    function (
-                                        context
-                                    ) {
-
-                                        return (
-                                            " " +
-                                            context.label +
-                                            ": " +
+                                    context => {
+                                        return `${
+                                            context.label
+                                        }: ${
                                             formatMoney(
                                                 context.raw
                                             )
-                                        );
+                                        }`;
                                     }
                             }
                         }
@@ -1321,587 +2273,65 @@ async function loadFlowChart(
 
 
 /* =========================================================
-   23. ACTIVIDAD
-========================================================= */
+   25. GRÁFICO GASTOS
+   ========================================================= */
 
-async function loadRecentActivity(
-    ingresos,
-    salidas,
-    aportes
-) {
-
-    const container =
-        document.getElementById(
-            "recentActivity"
-        );
-
-    if (!container) return;
-
-    const activities = [
-
-        ...ingresos.map(
-            item => ({
-                ...item,
-                type: "Ingreso"
-            })
-        ),
-
-        ...salidas.map(
-            item => ({
-                ...item,
-                type: "Salida"
-            })
-        ),
-
-        ...aportes.map(
-            item => ({
-                ...item,
-                type: "Aporte"
-            })
-        )
-
-    ]
-        .sort(
-            (a, b) =>
-                new Date(
-                    b.created_at ||
-                    b.fecha ||
-                    0
-                ) -
-                new Date(
-                    a.created_at ||
-                    a.fecha ||
-                    0
-                )
-        )
-        .slice(
-            0,
-            8
-        );
-
-
-    if (!activities.length) {
-
-        container.innerHTML = `
-            <div class="empty-state">
-                <div class="empty-icon">
-                    <i class="fa-solid fa-receipt"></i>
-                </div>
-
-                <p>
-                    No hay movimientos recientes.
-                </p>
-            </div>
-        `;
-
-        return;
-    }
-
-
-    container.innerHTML =
-        activities
-            .map(
-                item => {
-
-                    const amount =
-                        Number(
-                            item.monto ??
-                            0
-                        );
-
-                    const description =
-                        item.concepto ||
-                        item.descripcion ||
-                        item.categoria ||
-                        "Movimiento";
-
-
-                    return `
-                        <div class="activity-item">
-
-                            <div class="activity-icon">
-
-                                <i class="fa-solid ${
-                                    item.type === "Ingreso"
-                                        ? "fa-arrow-down"
-                                        : item.type === "Salida"
-                                            ? "fa-arrow-up"
-                                            : "fa-piggy-bank"
-                                }"></i>
-
-                            </div>
-
-                            <div class="activity-info">
-
-                                <strong>
-                                    ${escapeHTML(
-                                        description
-                                    )}
-                                </strong>
-
-                                <span>
-                                    ${item.type}
-                                    ·
-                                    ${formatDate(
-                                        item.fecha ||
-                                        item.created_at
-                                    )}
-                                </span>
-
-                            </div>
-
-                            <div class="activity-amount">
-
-                                ${formatMoney(
-                                    amount
-                                )}
-
-                            </div>
-
-                        </div>
-                    `;
-                }
-            )
-            .join("");
-}
-
-
-/* =========================================================
-   24. METAS PREVIEW
-========================================================= */
-
-async function loadGoalsPreview() {
-
-    const container =
-        document.getElementById(
-            "goalsPreview"
-        );
-
-    if (
-        !container ||
-        !currentUser
-    ) {
-        return;
-    }
-
-    try {
-
-        const {
-            data,
-            error
-        } =
-            await supabaseClient
-                .from("metas")
-                .select("*")
-                .eq(
-                    "user_id",
-                    currentUser.id
-                )
-                .order(
-                    "created_at",
-                    {
-                        ascending: false
-                    }
-                )
-                .limit(3);
-
-        if (error) {
-            throw error;
-        }
-
-        const goals =
-            data || [];
-
-
-        if (!goals.length) {
-
-            container.innerHTML = `
-                <div class="empty-state">
-
-                    <div class="empty-icon">
-                        <i class="fa-solid fa-bullseye"></i>
-                    </div>
-
-                    <p>
-                        Todavía no tienes metas registradas.
-                    </p>
-
-                </div>
-            `;
-
-            return;
-        }
-
-
-        container.innerHTML =
-            goals
-                .map(
-                    renderGoalCard
-                )
-                .join("");
-
-    } catch (error) {
-
-        console.error(
-            "❌ Error cargando metas:",
-            error
-        );
-    }
-}
-
-
-/* =========================================================
-   25. METAS
-========================================================= */
-
-async function loadGoalsPage() {
-
-    const container =
-        document.getElementById(
-            "goalsPageContainer"
-        );
-
-    if (
-        !container ||
-        !currentUser
-    ) {
-        return;
-    }
-
-    try {
-
-        const {
-            data,
-            error
-        } =
-            await supabaseClient
-                .from("metas")
-                .select("*")
-                .eq(
-                    "user_id",
-                    currentUser.id
-                )
-                .order(
-                    "created_at",
-                    {
-                        ascending: false
-                    }
-                );
-
-        if (error) {
-            throw error;
-        }
-
-        const goals =
-            data || [];
-
-
-        if (!goals.length) {
-
-            container.innerHTML = `
-                <div class="empty-state large">
-
-                    <div class="empty-icon">
-                        <i class="fa-solid fa-bullseye"></i>
-                    </div>
-
-                    <h3>
-                        Sin metas todavía
-                    </h3>
-
-                    <p>
-                        Crea tu primera meta financiera.
-                    </p>
-
-                </div>
-            `;
-
-            return;
-        }
-
-
-        container.innerHTML =
-            goals
-                .map(
-                    renderGoalCard
-                )
-                .join("");
-
-    } catch (error) {
-
-        console.error(
-            "❌ Error cargando metas:",
-            error
-        );
-
-        showToast(
-            "No se pudieron cargar las metas.",
-            "error"
-        );
-    }
-}
-
-
-/* =========================================================
-   26. TARJETA META
-========================================================= */
-
-function renderGoalCard(goal) {
-
-    const target =
-        Number(
-            goal.monto_objetivo ??
-            goal.objetivo ??
-            goal.meta ??
-            0
-        );
-
-    const current =
-        Number(
-            goal.monto_actual ??
-            goal.actual ??
-            goal.ahorrado ??
-            0
-        );
-
-    const percentage =
-        target > 0
-            ? Math.min(
-                100,
-                Math.max(
-                    0,
-                    (current /
-                        target) *
-                    100
-                )
-            )
-            : 0;
-
-    const name =
-        goal.nombre ||
-        goal.titulo ||
-        "Meta financiera";
-
-
-    return `
-        <div class="goal-card">
-
-            <div class="goal-header">
-
-                <div>
-
-                    <h3>
-                        ${escapeHTML(
-                            name
-                        )}
-                    </h3>
-
-                    ${
-                        goal.descripcion
-                            ? `
-                                <p>
-                                    ${escapeHTML(
-                                        goal.descripcion
-                                    )}
-                                </p>
-                            `
-                            : ""
-                    }
-
-                </div>
-
-                <span class="goal-percentage">
-                    ${percentage.toFixed(0)}%
-                </span>
-
-            </div>
-
-
-            <div class="goal-progress">
-
-                <div
-                    class="goal-progress-bar"
-                    style="width:${percentage}%"
-                ></div>
-
-            </div>
-
-
-            <div class="goal-values">
-
-                <span>
-                    ${formatMoney(
-                        current
-                    )}
-                </span>
-
-                <span>
-                    ${formatMoney(
-                        target
-                    )}
-                </span>
-
-            </div>
-
-        </div>
-    `;
-}
-
-
-/* =========================================================
-   27. REPORTES
-========================================================= */
-
-async function loadReports() {
-
-    if (!currentUser) return;
-
-    const [
-        ingresos,
-        salidas,
-        aportes
-    ] = await Promise.all([
-
-        getTransactions(
-            "ingresos"
-        ),
-
-        getTransactions(
-            "salidas"
-        ),
-
-        getTransactions(
-            "aportes"
-        )
-    ]);
-
-
-    const totalIngresos =
-        sumAmounts(
-            ingresos
-        );
-
-    const totalSalidas =
-        sumAmounts(
-            salidas
-        );
-
-    const totalAportes =
-        sumAmounts(
-            aportes
-        );
-
-    const balance =
-        totalIngresos -
-        totalSalidas -
-        totalAportes;
-
-
-    setText(
-        "#reportIncome",
-        formatMoney(
-            totalIngresos
-        )
-    );
-
-    setText(
-        "#reportExpense",
-        formatMoney(
-            totalSalidas
-        )
-    );
-
-    setText(
-        "#reportContribution",
-        formatMoney(
-            totalAportes
-        )
-    );
-
-    setText(
-        "#reportBalance",
-        formatMoney(
-            balance
-        )
-    );
-
-    loadExpenseChart(
-        salidas
-    );
-}
-
-
-/* =========================================================
-   28. GRÁFICO GASTOS
-========================================================= */
-
-function loadExpenseChart(
-    salidas
-) {
-
+function renderExpenseChart() {
     const canvas =
         document.getElementById(
             "expenseChart"
         );
 
+    if (!canvas) return;
+
     if (
-        !canvas ||
-        !window.Chart
+        typeof Chart ===
+        "undefined"
     ) {
         return;
     }
 
-    const grouped = {};
+    const groups = {};
 
-    salidas.forEach(
+    dashboardCache.salidas.forEach(
         item => {
-
             const category =
                 item.categoria ||
+                item.tipo ||
                 "Otros";
 
-            const amount =
+            groups[category] =
+                (groups[category] || 0) +
                 Number(
                     item.monto || 0
                 );
-
-            grouped[category] =
-                (
-                    grouped[category] ||
-                    0
-                ) +
-                amount;
         }
     );
 
+    const labels =
+        Object.keys(groups);
 
-    if (expenseChart) {
-        expenseChart.destroy();
+    const values =
+        Object.values(groups);
+
+    if (expenseChartInstance) {
+        expenseChartInstance.destroy();
     }
 
-
-    expenseChart =
+    expenseChartInstance =
         new Chart(
-            canvas,
+            canvas.getContext("2d"),
             {
                 type: "bar",
 
                 data: {
-
-                    labels:
-                        Object.keys(
-                            grouped
-                        ),
+                    labels,
 
                     datasets: [
                         {
-                            label:
-                                "Gastos",
-
-                            data:
-                                Object.values(
-                                    grouped
-                                )
+                            label: "Gastos",
+                            data: values,
+                            borderWidth: 1
                         }
                     ]
                 },
@@ -1909,8 +2339,33 @@ function loadExpenseChart(
                 options: {
                     responsive: true,
 
-                    maintainAspectRatio:
-                        false
+                    maintainAspectRatio: false,
+
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+
+                            ticks: {
+                                callback:
+                                    value =>
+                                        formatMoney(
+                                            value
+                                        )
+                            }
+                        }
+                    },
+
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label:
+                                    context =>
+                                        formatMoney(
+                                            context.raw
+                                        )
+                            }
+                        }
+                    }
                 }
             }
         );
@@ -1918,48 +2373,76 @@ function loadExpenseChart(
 
 
 /* =========================================================
-   29. ADMIN
-========================================================= */
+   26. REPORTES
+   ========================================================= */
 
-function isAdmin() {
+async function loadReports() {
+    const [
+        ingresos,
+        salidas,
+        aportes
+    ] = await Promise.all([
+        getTransactions("ingresos"),
+        getTransactions("salidas"),
+        getTransactions("aportes")
+    ]);
 
-    if (!currentProfile) {
-        return false;
-    }
+    const income =
+        calculateTotal(
+            ingresos
+        );
 
-    const role =
-        String(
-            currentProfile.rol ||
-            ""
-        ).toLowerCase();
+    const expenses =
+        calculateTotal(
+            salidas
+        );
 
-    return [
-        "admin",
-        "administrador",
-        "superadmin"
-    ].includes(
-        role
+    const contributions =
+        calculateTotal(
+            aportes
+        );
+
+    const balance =
+        income -
+        expenses -
+        contributions;
+
+    setText(
+        formatMoney(income),
+        "[data-report-income]",
+        "#reportIncome"
+    );
+
+    setText(
+        formatMoney(expenses),
+        "[data-report-expenses]",
+        "#reportExpense"
+    );
+
+    setText(
+        formatMoney(contributions),
+        "[data-report-contributions]",
+        "#reportContribution"
+    );
+
+    setText(
+        formatMoney(balance),
+        "[data-report-balance]",
+        "#reportBalance"
     );
 }
 
 
 /* =========================================================
-   30. CARGAR USUARIOS
-========================================================= */
+   27. ADMINISTRACIÓN DE USUARIOS
+   ========================================================= */
 
 async function loadUsers() {
-
-    if (!isAdmin()) return;
-
-    const container =
-        document.getElementById(
-            "usersTableBody"
-        );
-
-    if (!container) return;
+    if (!isAdmin()) {
+        return;
+    }
 
     try {
-
         const {
             data,
             error
@@ -1986,11 +2469,20 @@ async function loadUsers() {
                 );
 
         if (error) {
-            throw error;
+            console.error(
+                "❌ Error cargando usuarios:",
+                error
+            );
+
+            showToast(
+                "No se pudieron cargar los usuarios.",
+                "error"
+            );
+
+            return;
         }
 
-        allUsers =
-            data || [];
+        allUsers = data || [];
 
         renderUsers(
             allUsers
@@ -1999,251 +2491,302 @@ async function loadUsers() {
         updateUserCount(
             allUsers
         );
-
     } catch (error) {
-
         console.error(
-            "❌ Error cargando usuarios:",
+            "❌ Error usuarios:",
             error
-        );
-
-        showToast(
-            "No se pudieron cargar los usuarios.",
-            "error"
         );
     }
 }
 
 
-/* =========================================================
-   31. RENDER USUARIOS
-========================================================= */
-
-function renderUsers(
-    users
-) {
-
+function renderUsers(users) {
     const container =
-        document.getElementById(
-            "usersTableBody"
+        getElement(
+            "[data-users-list]",
+            "#usersTableBody",
+            "#users-list"
         );
 
     if (!container) return;
 
-
     if (!users.length) {
-
         container.innerHTML = `
             <tr>
-
-                <td colspan="6">
-
-                    <div class="table-empty">
-
-                        <i class="fa-solid fa-users"></i>
-
-                        <span>
-                            No se encontraron usuarios.
-                        </span>
-
-                    </div>
-
+                <td
+                    colspan="7"
+                    style="
+                        text-align:center;
+                        padding:40px;
+                    "
+                >
+                    No se encontraron usuarios.
                 </td>
-
             </tr>
         `;
 
         return;
     }
 
+    /* Si es tbody */
 
-    container.innerHTML =
-        users
-            .map(
-                user => {
-
-                    const name = [
-                        user.nombre,
-                        user.apellido
-                    ]
-                        .filter(Boolean)
-                        .join(" ") ||
+    if (
+        container.tagName ===
+        "TBODY"
+    ) {
+        container.innerHTML =
+            users
+                .map(user => {
+                    const fullName =
+                        `${user.nombre || ""} ${
+                            user.apellido || ""
+                        }`.trim() ||
                         user.usuario ||
-                        "Usuario";
+                        "Sin nombre";
 
-
-                    const status =
+                    const active =
                         String(
                             user.estado ||
-                            "activo"
-                        ).toLowerCase();
-
-
-                    const role =
-                        String(
-                            user.rol ||
-                            "usuario"
-                        ).toLowerCase();
-
+                                "activo"
+                        ).toLowerCase() ===
+                        "activo";
 
                     return `
                         <tr>
 
                             <td>
+                                <div style="
+                                    display:flex;
+                                    align-items:center;
+                                    gap:10px;
+                                ">
 
-                                <div class="user-info">
-
-                                    <div class="user-avatar">
+                                    <div style="
+                                        width:38px;
+                                        height:38px;
+                                        border-radius:50%;
+                                        display:flex;
+                                        align-items:center;
+                                        justify-content:center;
+                                        font-weight:800;
+                                        background:rgba(99,102,241,.12);
+                                    ">
                                         ${escapeHTML(
                                             getInitials(
-                                                name
+                                                user.nombre,
+                                                user.apellido
                                             )
                                         )}
                                     </div>
 
                                     <div>
-
                                         <strong>
                                             ${escapeHTML(
-                                                name
+                                                fullName
                                             )}
                                         </strong>
 
-                                        <span>
-                                            @${escapeHTML(
-                                                user.usuario ||
-                                                ""
+                                        <small style="
+                                            display:block;
+                                            opacity:.65;
+                                        ">
+                                            ${escapeHTML(
+                                                user.email ||
+                                                    ""
                                             )}
-                                        </span>
-
+                                        </small>
                                     </div>
 
                                 </div>
-
                             </td>
-
 
                             <td>
                                 ${escapeHTML(
-                                    user.email ||
-                                    ""
+                                    user.usuario ||
+                                        "—"
                                 )}
                             </td>
 
-
                             <td>
-
-                                <span class="badge role-${escapeHTML(
-                                    role
-                                )}">
+                                <span class="role-badge">
                                     ${escapeHTML(
-                                        formatRole(
-                                            role
-                                        )
+                                        user.rol ||
+                                            "usuario"
                                     )}
                                 </span>
-
                             </td>
 
-
                             <td>
-
-                                <span class="badge ${
-                                    status === "activo"
-                                        ? "badge-success"
-                                        : "badge-danger"
-                                }">
-
+                                <span class="
+                                    status-badge
                                     ${
-                                        status === "activo"
+                                        active
+                                            ? "status-active"
+                                            : "status-inactive"
+                                    }
+                                ">
+                                    ●
+                                    ${
+                                        active
                                             ? "Activo"
                                             : "Inactivo"
                                     }
-
                                 </span>
-
                             </td>
-
 
                             <td>
                                 ${escapeHTML(
                                     user.moneda ||
-                                    "PEN"
+                                        "PEN"
                                 )}
                             </td>
 
+                            <td>
+                                ${formatDate(
+                                    user.created_at
+                                )}
+                            </td>
 
                             <td>
-
                                 ${
                                     user.id !==
                                     currentUser?.id
-
                                         ? `
                                             <button
                                                 type="button"
-                                                class="btn-toggle-user"
-                                                data-toggle-user="${escapeHTML(
+                                                class="user-status-btn"
+                                                data-user-id="${escapeHTML(
                                                     user.id
                                                 )}"
-                                            >
-                                                ${
-                                                    status ===
-                                                    "activo"
+                                                title="${
+                                                    active
                                                         ? "Desactivar"
                                                         : "Activar"
-                                                }
+                                                } usuario"
+                                            >
+                                                <i class="
+                                                    fa-solid
+                                                    ${
+                                                        active
+                                                            ? "fa-user-slash"
+                                                            : "fa-user-check"
+                                                    }
+                                                "></i>
                                             </button>
                                         `
-
                                         : `
-                                            <span class="current-user-label">
+                                            <span
+                                                style="
+                                                    opacity:.5;
+                                                    font-size:12px;
+                                                "
+                                            >
                                                 Tú
                                             </span>
                                         `
                                 }
-
                             </td>
 
                         </tr>
                     `;
-                }
-            )
+                })
+                .join("");
+
+        setupUserActionButtons();
+
+        return;
+    }
+
+    /* Fallback para contenedores DIV */
+
+    container.innerHTML =
+        users
+            .map(user => {
+                const fullName =
+                    `${user.nombre || ""} ${
+                        user.apellido || ""
+                    }`.trim() ||
+                    user.usuario ||
+                    "Sin nombre";
+
+                return `
+                    <div class="user-row">
+                        <strong>
+                            ${escapeHTML(
+                                fullName
+                            )}
+                        </strong>
+
+                        <span>
+                            ${escapeHTML(
+                                user.email ||
+                                    ""
+                            )}
+                        </span>
+                    </div>
+                `;
+            })
             .join("");
-
-
-    container
-        .querySelectorAll(
-            "[data-toggle-user]"
-        )
-        .forEach(
-            button => {
-
-                button.addEventListener(
-                    "click",
-                    async () => {
-
-                        await toggleUserStatus(
-                            button.dataset
-                                .toggleUser
-                        );
-                    }
-                );
-            }
-        );
 }
 
 
-/* =========================================================
-   32. CAMBIAR ESTADO
-========================================================= */
+function setupUserActionButtons() {
+    document
+        .querySelectorAll(
+            ".user-status-btn"
+        )
+        .forEach(button => {
+            button.addEventListener(
+                "click",
+                async () => {
+                    const userId =
+                        button.dataset
+                            .userId;
+
+                    if (userId) {
+                        await toggleUserStatus(
+                            userId
+                        );
+                    }
+                }
+            );
+        });
+}
+
+
+function updateUserCount(
+    users
+) {
+    const total =
+        users.length;
+
+    const active =
+        users.filter(
+            user =>
+                String(
+                    user.estado ||
+                        "activo"
+                ).toLowerCase() ===
+                "activo"
+        ).length;
+
+    setText(
+        total,
+        "[data-user-count]",
+        "#userCount"
+    );
+
+    setText(
+        active,
+        "[data-active-user-count]",
+        "#activeUserCount"
+    );
+}
+
 
 async function toggleUserStatus(
     userId
 ) {
-
-    if (!isAdmin()) return;
-
     const user =
         allUsers.find(
             item =>
@@ -2253,23 +2796,32 @@ async function toggleUserStatus(
 
     if (!user) return;
 
-
-    const currentStatus =
+    const currentlyActive =
         String(
             user.estado ||
-            "activo"
-        ).toLowerCase();
-
+                "activo"
+        ).toLowerCase() ===
+        "activo";
 
     const newStatus =
-        currentStatus ===
-        "activo"
+        currentlyActive
             ? "inactivo"
             : "activo";
 
+    const confirmed =
+        confirm(
+            `¿Deseas ${
+                currentlyActive
+                    ? "desactivar"
+                    : "activar"
+            } a ${user.nombre || user.usuario}?`
+        );
+
+    if (!confirmed) {
+        return;
+    }
 
     try {
-
         const {
             error
         } =
@@ -2285,253 +2837,323 @@ async function toggleUserStatus(
                 );
 
         if (error) {
-            throw error;
+            console.error(
+                "❌ Error cambiando estado:",
+                error
+            );
+
+            showToast(
+                "No se pudo actualizar el estado.",
+                "error"
+            );
+
+            return;
         }
 
+        user.estado =
+            newStatus;
+
+        renderUsers(
+            applyUserFilters()
+        );
+
+        updateUserCount(
+            allUsers
+        );
+
         showToast(
-            newStatus === "activo"
-                ? "Usuario activado."
-                : "Usuario desactivado.",
+            `Usuario ${
+                newStatus ===
+                "activo"
+                    ? "activado"
+                    : "desactivado"
+            } correctamente.`,
             "success"
         );
-
-        await loadUsers();
-
     } catch (error) {
-
         console.error(
+            "❌ Error estado usuario:",
             error
-        );
-
-        showToast(
-            "No se pudo actualizar el usuario.",
-            "error"
         );
     }
 }
 
 
 /* =========================================================
-   33. BÚSQUEDA
-========================================================= */
-
-function setupUserSearch() {
-
-    const input =
-        document.getElementById(
-            "userSearch"
-        );
-
-    input?.addEventListener(
-        "input",
-        applyUserFilters
-    );
-}
-
+   28. BUSCAR Y FILTRAR USUARIOS
+   ========================================================= */
 
 function setupUserFilters() {
-
-    document
-        .getElementById(
-            "userRoleFilter"
-        )
-        ?.addEventListener(
-            "change",
-            applyUserFilters
+    const searchInput =
+        getElement(
+            "[data-user-search]",
+            "#userSearch",
+            "#user-search"
         );
 
-    document
-        .getElementById(
-            "userStatusFilter"
-        )
-        ?.addEventListener(
-            "change",
-            applyUserFilters
+    const roleFilter =
+        getElement(
+            "[data-user-role-filter]",
+            "#userRoleFilter"
         );
+
+    const statusFilter =
+        getElement(
+            "[data-user-status-filter]",
+            "#userStatusFilter"
+        );
+
+    const apply =
+        debounce(
+            () => {
+                const filtered =
+                    applyUserFilters();
+
+                renderUsers(
+                    filtered
+                );
+
+                updateUserCount(
+                    filtered
+                );
+            },
+            200
+        );
+
+    searchInput?.addEventListener(
+        "input",
+        apply
+    );
+
+    roleFilter?.addEventListener(
+        "change",
+        apply
+    );
+
+    statusFilter?.addEventListener(
+        "change",
+        apply
+    );
 }
 
 
 function applyUserFilters() {
+    const searchInput =
+        getElement(
+            "[data-user-search]",
+            "#userSearch",
+            "#user-search"
+        );
+
+    const roleFilter =
+        getElement(
+            "[data-user-role-filter]",
+            "#userRoleFilter"
+        );
+
+    const statusFilter =
+        getElement(
+            "[data-user-status-filter]",
+            "#userStatusFilter"
+        );
 
     const search =
-        (
-            document.getElementById(
-                "userSearch"
-            )?.value ||
-            ""
+        String(
+            searchInput?.value || ""
         )
             .trim()
             .toLowerCase();
 
+    const role =
+        String(
+            roleFilter?.value || ""
+        )
+            .trim()
+            .toLowerCase();
 
-    const roleFilter =
-        document.getElementById(
-            "userRoleFilter"
-        )?.value ||
-        "all";
+    const status =
+        String(
+            statusFilter?.value || ""
+        )
+            .trim()
+            .toLowerCase();
 
+    return allUsers.filter(
+        user => {
+            const searchable = `
+                ${user.nombre || ""}
+                ${user.apellido || ""}
+                ${user.email || ""}
+                ${user.usuario || ""}
+            `.toLowerCase();
 
-    const statusFilter =
-        document.getElementById(
-            "userStatusFilter"
-        )?.value ||
-        "all";
+            const userRole =
+                String(
+                    user.rol || ""
+                ).toLowerCase();
 
+            const userStatus =
+                String(
+                    user.estado ||
+                        "activo"
+                ).toLowerCase();
 
-    const filtered =
-        allUsers.filter(
-            user => {
-
-                const text = [
-                    user.nombre,
-                    user.apellido,
-                    user.usuario,
-                    user.email
-                ]
-                    .filter(Boolean)
-                    .join(" ")
-                    .toLowerCase();
-
-
-                const role =
-                    String(
-                        user.rol ||
-                        ""
-                    ).toLowerCase();
-
-
-                const status =
-                    String(
-                        user.estado ||
-                        ""
-                    ).toLowerCase();
-
-
-                return (
-                    (!search ||
-                        text.includes(
-                            search
-                        )) &&
-
-                    (
-                        roleFilter ===
-                        "all" ||
-                        role ===
-                        roleFilter
-                    ) &&
-
-                    (
-                        statusFilter ===
-                        "all" ||
-                        status ===
-                        statusFilter
-                    )
+            const matchesSearch =
+                !search ||
+                searchable.includes(
+                    search
                 );
+
+            const matchesRole =
+                !role ||
+                userRole ===
+                    role;
+
+            const matchesStatus =
+                !status ||
+                userStatus ===
+                    status;
+
+            return (
+                matchesSearch &&
+                matchesRole &&
+                matchesStatus
+            );
+        }
+    );
+}
+
+
+/* =========================================================
+   29. MODAL CREAR USUARIO
+   ========================================================= */
+
+function openCreateUserModal() {
+    const modal =
+        document.getElementById(
+            "createUserModal"
+        );
+
+    if (!modal) return;
+
+    modal.classList.add(
+        "active",
+        "open",
+        "show"
+    );
+
+    modal.style.display = "";
+
+    document.body.classList.add(
+        "modal-open"
+    );
+}
+
+
+function closeCreateUserModal() {
+    const modal =
+        document.getElementById(
+            "createUserModal"
+        );
+
+    if (!modal) return;
+
+    modal.classList.remove(
+        "active",
+        "open",
+        "show"
+    );
+
+    modal.style.display =
+        "none";
+
+    document.body.classList.remove(
+        "modal-open"
+    );
+}
+
+
+function setupModalEvents() {
+    /* Abrir por data attribute */
+
+    document
+        .querySelectorAll(
+            "[data-modal-open]"
+        )
+        .forEach(button => {
+            button.addEventListener(
+                "click",
+                () => {
+                    const modalId =
+                        button.dataset
+                            .modalOpen;
+
+                    const modal =
+                        document.getElementById(
+                            modalId
+                        );
+
+                    if (modal) {
+                        modal.classList.add(
+                            "active",
+                            "open",
+                            "show"
+                        );
+
+                        modal.style.display =
+                            "";
+                    }
+                }
+            );
+        });
+
+    /* Crear usuario */
+
+    document
+        .querySelectorAll(
+            "#createUserBtn, [data-create-user-open]"
+        )
+        .forEach(button => {
+            button.addEventListener(
+                "click",
+                openCreateUserModal
+            );
+        });
+
+    /* Cerrar */
+
+    document
+        .querySelectorAll(
+            "[data-modal-close], #cancelCreateUser, #closeCreateUserModal"
+        )
+        .forEach(button => {
+            button.addEventListener(
+                "click",
+                closeCreateUserModal
+            );
+        });
+
+    const modal =
+        document.getElementById(
+            "createUserModal"
+        );
+
+    modal?.addEventListener(
+        "click",
+        event => {
+            if (
+                event.target ===
+                modal
+            ) {
+                closeCreateUserModal();
             }
-        );
-
-
-    renderUsers(
-        filtered
+        }
     );
-
-    updateUserCount(
-        filtered
-    );
-}
-
-
-/* =========================================================
-   34. CONTADOR
-========================================================= */
-
-function updateUserCount(
-    users
-) {
-
-    const count =
-        document.getElementById(
-            "userCount"
-        );
-
-    if (!count) return;
-
-    count.textContent =
-        `${users.length} ${
-            users.length === 1
-                ? "usuario"
-                : "usuarios"
-        }`;
-}
-
-
-/* =========================================================
-   35. MODAL CREAR USUARIO
-========================================================= */
-
-function setupCreateUserModal() {
-
-    const openButton =
-        document.getElementById(
-            "openCreateUserModal"
-        );
-
-    const closeButton =
-        document.getElementById(
-            "closeCreateUserModal"
-        );
-
-    const cancelButton =
-        document.getElementById(
-            "cancelCreateUser"
-        );
 
     const form =
         document.getElementById(
             "createUserForm"
         );
-
-
-    openButton?.addEventListener(
-        "click",
-        () => {
-
-            if (!isAdmin()) {
-
-                showToast(
-                    "No tienes permisos para crear usuarios.",
-                    "error"
-                );
-
-                return;
-            }
-
-            openModal(
-                "createUserModal"
-            );
-        }
-    );
-
-
-    closeButton?.addEventListener(
-        "click",
-        () => {
-            closeModal(
-                "createUserModal"
-            );
-        }
-    );
-
-
-    cancelButton?.addEventListener(
-        "click",
-        () => {
-            closeModal(
-                "createUserModal"
-            );
-        }
-    );
-
 
     form?.addEventListener(
         "submit",
@@ -2541,37 +3163,37 @@ function setupCreateUserModal() {
 
 
 /* =========================================================
-   36. CREAR USUARIO
-========================================================= */
+   30. CREAR USUARIO
+   ========================================================= */
 
 async function handleCreateUser(
     event
 ) {
-
     event.preventDefault();
 
     if (!isAdmin()) {
+        showToast(
+            "No tienes permisos para crear usuarios.",
+            "error"
+        );
+
         return;
     }
-
 
     const nombre =
         document.getElementById(
             "newUserNombre"
-        )?.value.trim();
-
+        )?.value?.trim();
 
     const apellido =
         document.getElementById(
             "newUserApellido"
-        )?.value.trim();
-
+        )?.value?.trim();
 
     const usuario =
         document.getElementById(
             "newUserUsuario"
-        )?.value.trim();
-
+        )?.value?.trim();
 
     const moneda =
         document.getElementById(
@@ -2579,84 +3201,107 @@ async function handleCreateUser(
         )?.value ||
         "PEN";
 
-
     const email =
         document.getElementById(
             "newUserEmail"
-        )?.value.trim();
-
+        )?.value?.trim();
 
     const password =
         document.getElementById(
             "newUserPassword"
         )?.value;
 
+    const message =
+        document.getElementById(
+            "createUserMessage"
+        );
+
+    const submitButton =
+        document.getElementById(
+            "createUserSubmit"
+        );
 
     if (
         !nombre ||
+        !apellido ||
+        !usuario ||
         !email ||
         !password
     ) {
-
         showToast(
-            "Completa los campos obligatorios.",
+            "Completa todos los campos obligatorios.",
             "warning"
         );
 
         return;
     }
 
-
-    const submit =
-        document.getElementById(
-            "createUserSubmit"
+    if (password.length < 6) {
+        showToast(
+            "La contraseña debe tener al menos 6 caracteres.",
+            "warning"
         );
 
-    if (submit) {
-        submit.disabled =
-            true;
+        return;
     }
 
+    const userData = {
+        nombre,
+        apellido,
+        usuario,
+        moneda,
+        email,
+        password
+    };
 
     try {
+        if (submitButton) {
+            submitButton.disabled =
+                true;
+
+            submitButton.innerHTML =
+                "Creando usuario...";
+        }
+
+        if (message) {
+            message.textContent =
+                "Creando usuario...";
+        }
 
         const {
             data,
             error
         } =
-            await supabaseClient
-                .functions
-                .invoke(
-                    "crear-usuario",
-                    {
-                        body: {
-                            nombre,
-                            apellido,
-                            usuario,
-                            email,
-                            password,
-                            moneda
-                        }
-                    }
-                );
-
+            await supabaseClient.functions.invoke(
+                "crear-usuario",
+                {
+                    body: userData
+                }
+            );
 
         if (error) {
+            console.error(
+                "❌ Error Edge Function:",
+                error
+            );
+
             throw error;
         }
-
 
         console.log(
             "✅ Usuario creado:",
             data
         );
 
+        if (message) {
+            message.textContent =
+                "Usuario creado correctamente.";
+        }
 
         showToast(
             "Usuario creado correctamente.",
             "success"
         );
-
 
         document
             .getElementById(
@@ -2664,46 +3309,133 @@ async function handleCreateUser(
             )
             ?.reset();
 
-
-        closeModal(
-            "createUserModal"
+        setTimeout(
+            closeCreateUserModal,
+            700
         );
 
-
         await loadUsers();
-
     } catch (error) {
-
         console.error(
             "❌ Error creando usuario:",
             error
         );
 
-        showToast(
+        const errorMessage =
             error?.message ||
-            "No se pudo crear el usuario.",
+            "No se pudo crear el usuario.";
+
+        if (message) {
+            message.textContent =
+                errorMessage;
+        }
+
+        showToast(
+            errorMessage,
             "error"
         );
-
     } finally {
-
-        if (submit) {
-            submit.disabled =
+        if (submitButton) {
+            submitButton.disabled =
                 false;
+
+            submitButton.innerHTML =
+                "Crear usuario";
         }
     }
 }
 
 
 /* =========================================================
-   37. GENERADOR CONTRASEÑA
-========================================================= */
+   31. GENERADOR DE CONTRASEÑAS
+   ========================================================= */
+
+function generateSecurePassword(
+    length = 12
+) {
+    const upper =
+        "ABCDEFGHJKLMNPQRSTUVWXYZ";
+
+    const lower =
+        "abcdefghijkmnopqrstuvwxyz";
+
+    const numbers =
+        "23456789";
+
+    const symbols =
+        "!@#$%&*";
+
+    const all =
+        upper +
+        lower +
+        numbers +
+        symbols;
+
+    let password =
+        "";
+
+    password +=
+        upper[
+            Math.floor(
+                Math.random() *
+                    upper.length
+            )
+        ];
+
+    password +=
+        lower[
+            Math.floor(
+                Math.random() *
+                    lower.length
+            )
+        ];
+
+    password +=
+        numbers[
+            Math.floor(
+                Math.random() *
+                    numbers.length
+            )
+        ];
+
+    password +=
+        symbols[
+            Math.floor(
+                Math.random() *
+                    symbols.length
+            )
+        ];
+
+    for (
+        let i = password.length;
+        i < length;
+        i++
+    ) {
+        password +=
+            all[
+                Math.floor(
+                    Math.random() *
+                        all.length
+                )
+            ];
+    }
+
+    return password
+        .split("")
+        .sort(
+            () =>
+                Math.random() -
+                0.5
+        )
+        .join("");
+}
+
 
 function setupPasswordGenerator() {
-
     const button =
-        document.getElementById(
-            "generatePassword"
+        getElement(
+            "[data-generate-password]",
+            "#generatePassword"
         );
 
     const input =
@@ -2715,20 +3447,27 @@ function setupPasswordGenerator() {
         return;
     }
 
-
     button.addEventListener(
         "click",
         () => {
-
             input.value =
-                generatePassword(
+                generateSecurePassword(
                     12
                 );
 
-            input.focus();
+            input.type =
+                "text";
+
+            setTimeout(
+                () => {
+                    input.type =
+                        "password";
+                },
+                2500
+            );
 
             showToast(
-                "Contraseña generada.",
+                "Contraseña segura generada.",
                 "success"
             );
         }
@@ -2736,1719 +3475,345 @@ function setupPasswordGenerator() {
 }
 
 
-function generatePassword(
-    length = 12
-) {
-
-    const characters =
-        "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
-
-    let result = "";
-
-    for (
-        let i = 0;
-        i < length;
-        i++
-    ) {
-
-        result +=
-            characters.charAt(
-                Math.floor(
-                    Math.random() *
-                    characters.length
-                )
-            );
-    }
-
-    return result;
-}
-
-
 /* =========================================================
-   38. TEMA
-========================================================= */
-
-function setupThemeToggle() {
-
-    const button =
-        document.getElementById(
-            "themeToggle"
-        );
-
-    const saved =
-        localStorage.getItem(
-            "finanzas-theme"
-        );
-
-
-    if (saved) {
-
-        applyTheme(
-            saved
-        );
-
-    } else {
-
-        const dark =
-            window.matchMedia?.(
-                "(prefers-color-scheme: dark)"
-            ).matches;
-
-        applyTheme(
-            dark
-                ? "dark"
-                : "light"
-        );
-    }
-
-
-    button?.addEventListener(
-        "click",
-        () => {
-
-            const current =
-                document.documentElement
-                    .dataset.theme ||
-                "light";
-
-
-            applyTheme(
-                current === "dark"
-                    ? "light"
-                    : "dark"
-            );
-        }
-    );
-}
-
-
-function applyTheme(
-    theme
-) {
-
-    document.documentElement.dataset.theme =
-        theme;
-
-    document.documentElement.classList.toggle(
-        "dark",
-        theme === "dark"
-    );
-
-    localStorage.setItem(
-        "finanzas-theme",
-        theme
-    );
-
-
-    const button =
-        document.getElementById(
-            "themeToggle"
-        );
-
-
-    if (button) {
-
-        const icon =
-            button.querySelector(
-                "i"
-            );
-
-        const text =
-            button.querySelector(
-                "span"
-            );
-
-
-        if (icon) {
-
-            icon.className =
-                theme === "dark"
-                    ? "fa-solid fa-sun"
-                    : "fa-solid fa-moon";
-        }
-
-
-        if (text) {
-
-            const iconHTML =
-                theme === "dark"
-                    ? `<i class="fa-solid fa-sun"></i>`
-                    : `<i class="fa-solid fa-moon"></i>`;
-
-            text.innerHTML =
-                `${iconHTML} ${
-                    theme === "dark"
-                        ? "Modo claro"
-                        : "Modo oscuro"
-                }`;
-        }
-    }
-}
-
-
-/* =========================================================
-   39. ACCIONES RÁPIDAS
-========================================================= */
+   32. ACCIONES RÁPIDAS
+   ========================================================= */
 
 function setupQuickActions() {
-
-    /* Registrar movimiento */
-
     document
         .querySelectorAll(
-            ".primary-action[data-section]"
+            "[data-quick-action]"
         )
-        .forEach(
-            button => {
+        .forEach(button => {
+            button.addEventListener(
+                "click",
+                () => {
+                    const action =
+                        button.dataset
+                            .quickAction;
 
-                button.addEventListener(
-                    "click",
-                    async () => {
-
-                        const section =
-                            button.dataset
-                                .section;
-
-                        if (section) {
-
-                            await showSection(
-                                section
-                            );
-                        }
-                    }
-                );
-            }
-        );
+                    handleQuickAction(
+                        action
+                    );
+                }
+            );
+        });
+}
 
 
-    /* Ver todos */
-
-    document
-        .querySelectorAll(
-            ".text-button[data-section]"
-        )
-        .forEach(
-            button => {
-
-                button.addEventListener(
-                    "click",
-                    async () => {
-
-                        await showSection(
-                            button.dataset
-                                .section
-                        );
-                    }
-                );
-            }
-        );
-
-
-    /* Nuevos movimientos */
-
-    const incomeButton =
-        findSectionAction(
-            "ingresos"
-        );
-
-    const expenseButton =
-        findSectionAction(
-            "salidas"
-        );
-
-    const contributionButton =
-        findSectionAction(
-            "aportes"
-        );
-
-    const goalButton =
-        findSectionAction(
-            "metas"
-        );
-
-
-    incomeButton?.addEventListener(
-        "click",
-        () => {
-            openTransactionModal(
+function handleQuickAction(
+    action
+) {
+    switch (
+        String(action || "")
+            .toLowerCase()
+    ) {
+        case "ingreso":
+        case "nuevo-ingreso":
+            showSection(
                 "ingresos"
             );
-        }
-    );
 
+            showToast(
+                "Sección de ingresos abierta.",
+                "info"
+            );
 
-    expenseButton?.addEventListener(
-        "click",
-        () => {
-            openTransactionModal(
+            break;
+
+        case "salida":
+        case "nuevo-salida":
+            showSection(
                 "salidas"
             );
-        }
-    );
 
+            showToast(
+                "Sección de salidas abierta.",
+                "info"
+            );
 
-    contributionButton?.addEventListener(
-        "click",
-        () => {
-            openTransactionModal(
+            break;
+
+        case "aporte":
+        case "nuevo-aporte":
+            showSection(
                 "aportes"
             );
-        }
-    );
 
+            showToast(
+                "Sección de aportes abierta.",
+                "info"
+            );
 
-    goalButton?.addEventListener(
-        "click",
-        () => {
-            openGoalModal();
-        }
-    );
-}
+            break;
 
+        case "meta":
+        case "nueva-meta":
+            showSection(
+                "metas"
+            );
 
-function findSectionAction(
-    section
-) {
+            showToast(
+                "Sección de metas abierta.",
+                "info"
+            );
 
-    const page =
-        document.getElementById(
-            section
-        );
+            break;
 
-    if (!page) return null;
-
-    return page.querySelector(
-        ".section-header .primary-action"
-    );
+        default:
+            console.warn(
+                "⚠️ Acción desconocida:",
+                action
+            );
+    }
 }
 
 
 /* =========================================================
-   40. MODAL MOVIMIENTOS
-========================================================= */
+   33. BOTONES GENÉRICOS DE MOVIMIENTOS
+   ========================================================= */
 
-function openTransactionModal(
-    type
-) {
-
-    const names = {
-
-        ingresos:
-            "Nuevo ingreso",
-
-        salidas:
-            "Nueva salida",
-
-        aportes:
-            "Nuevo aporte"
-    };
-
-
-    const modal =
-        createDynamicModal(
-            "transactionModal"
-        );
-
-
-    modal.innerHTML = `
-
-        <div class="modal-card">
-
-            <div class="modal-header">
-
-                <div>
-
-                    <span class="modal-eyebrow">
-                        FINANZAS
-                    </span>
-
-                    <h2>
-                        ${names[type]}
-                    </h2>
-
-                    <p>
-                        Registra un nuevo movimiento.
-                    </p>
-
-                </div>
-
-                <button
-                    type="button"
-                    class="modal-close"
-                    data-close-dynamic
-                >
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-
-            </div>
-
-
-            <form id="transactionForm">
-
-                <div class="form-group">
-
-                    <label>
-                        Concepto
-                    </label>
-
-                    <input
-                        id="transactionConcept"
-                        type="text"
-                        placeholder="Ej. Sueldo"
-                        required
-                    >
-
-                </div>
-
-
-                <div class="form-row">
-
-                    <div class="form-group">
-
-                        <label>
-                            Monto
-                        </label>
-
-                        <input
-                            id="transactionAmount"
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            placeholder="0.00"
-                            required
-                        >
-
-                    </div>
-
-
-                    <div class="form-group">
-
-                        <label>
-                            Fecha
-                        </label>
-
-                        <input
-                            id="transactionDate"
-                            type="date"
-                            value="${getToday()}"
-                            required
-                        >
-
-                    </div>
-
-                </div>
-
-
-                <div class="form-group">
-
-                    <label>
-                        Categoría
-                    </label>
-
-                    <input
-                        id="transactionCategory"
-                        type="text"
-                        placeholder="Ej. Trabajo, alimentación..."
-                    >
-
-                </div>
-
-
-                <div class="form-group">
-
-                    <label>
-                        Descripción
-                    </label>
-
-                    <textarea
-                        id="transactionDescription"
-                        rows="3"
-                        placeholder="Descripción opcional..."
-                    ></textarea>
-
-                </div>
-
-
-                <div class="modal-actions">
-
-                    <button
-                        type="button"
-                        class="secondary-action"
-                        data-close-dynamic
-                    >
-                        Cancelar
-                    </button>
-
-                    <button
-                        type="submit"
-                        class="primary-action"
-                    >
-                        <i class="fa-solid fa-check"></i>
-                        Guardar
-                    </button>
-
-                </div>
-
-            </form>
-
-        </div>
-    `;
-
-
-    document.body.appendChild(
-        modal
-    );
-
-
-    activateDynamicModal(
-        modal
-    );
-
-
+function setupTransactionButtons() {
     document
-        .getElementById(
-            "transactionForm"
-        )
-        .addEventListener(
-            "submit",
-            async event => {
-
-                event.preventDefault();
-
-                await saveTransaction(
-                    type,
-                    modal
-                );
-            }
-        );
-}
-
-
-/* =========================================================
-   41. GUARDAR MOVIMIENTO
-========================================================= */
-
-async function saveTransaction(
-    type,
-    modal
-) {
-
-    const table =
-        type;
-
-
-    const concepto =
-        document.getElementById(
-            "transactionConcept"
-        ).value.trim();
-
-
-    const monto =
-        Number(
-            document.getElementById(
-                "transactionAmount"
-            ).value
-        );
-
-
-    const fecha =
-        document.getElementById(
-            "transactionDate"
-        ).value;
-
-
-    const categoria =
-        document.getElementById(
-            "transactionCategory"
-        ).value.trim();
-
-
-    const descripcion =
-        document.getElementById(
-            "transactionDescription"
-        ).value.trim();
-
-
-    if (
-        !concepto ||
-        !monto ||
-        !fecha
-    ) {
-
-        showToast(
-            "Completa los campos obligatorios.",
-            "warning"
-        );
-
-        return;
-    }
-
-
-    try {
-
-        const {
-            error
-        } =
-            await supabaseClient
-                .from(table)
-                .insert({
-
-                    user_id:
-                        currentUser.id,
-
-                    concepto,
-
-                    monto,
-
-                    categoria:
-                        categoria ||
-                        null,
-
-                    fecha,
-
-                    descripcion:
-                        descripcion ||
-                        null
-                });
-
-
-        if (error) {
-            throw error;
-        }
-
-
-        showToast(
-            `${
-                type === "ingresos"
-                    ? "Ingreso"
-                    : type === "salidas"
-                        ? "Salida"
-                        : "Aporte"
-            } registrado correctamente.`,
-            "success"
-        );
-
-
-        modal.remove();
-
-        await loadDashboard();
-
-        if (
-            document
-                .getElementById(
-                    "reportes"
-                )
-                ?.classList.contains(
-                    "active"
-                )
-        ) {
-            await loadReports();
-        }
-
-    } catch (error) {
-
-        console.error(
-            "❌ Error guardando movimiento:",
-            error
-        );
-
-        showToast(
-            error?.message ||
-            "No se pudo guardar el movimiento.",
-            "error"
-        );
-    }
-}
-
-
-/* =========================================================
-   42. MODAL META
-========================================================= */
-
-function openGoalModal() {
-
-    const modal =
-        createDynamicModal(
-            "goalModal"
-        );
-
-
-    modal.innerHTML = `
-
-        <div class="modal-card">
-
-            <div class="modal-header">
-
-                <div>
-
-                    <span class="modal-eyebrow">
-                        OBJETIVOS
-                    </span>
-
-                    <h2>
-                        Nueva meta
-                    </h2>
-
-                    <p>
-                        Define un nuevo objetivo financiero.
-                    </p>
-
-                </div>
-
-                <button
-                    type="button"
-                    class="modal-close"
-                    data-close-dynamic
-                >
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-
-            </div>
-
-
-            <form id="goalForm">
-
-                <div class="form-group">
-
-                    <label>
-                        Nombre de la meta
-                    </label>
-
-                    <input
-                        id="goalName"
-                        type="text"
-                        placeholder="Ej. Viaje, laptop, emergencia..."
-                        required
-                    >
-
-                </div>
-
-
-                <div class="form-row">
-
-                    <div class="form-group">
-
-                        <label>
-                            Monto objetivo
-                        </label>
-
-                        <input
-                            id="goalTarget"
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            placeholder="0.00"
-                            required
-                        >
-
-                    </div>
-
-
-                    <div class="form-group">
-
-                        <label>
-                            Monto actual
-                        </label>
-
-                        <input
-                            id="goalCurrent"
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value="0"
-                        >
-
-                    </div>
-
-                </div>
-
-
-                <div class="form-group">
-
-                    <label>
-                        Descripción
-                    </label>
-
-                    <textarea
-                        id="goalDescription"
-                        rows="3"
-                        placeholder="Describe tu objetivo..."
-                    ></textarea>
-
-                </div>
-
-
-                <div class="modal-actions">
-
-                    <button
-                        type="button"
-                        class="secondary-action"
-                        data-close-dynamic
-                    >
-                        Cancelar
-                    </button>
-
-                    <button
-                        type="submit"
-                        class="primary-action"
-                    >
-                        <i class="fa-solid fa-bullseye"></i>
-                        Crear meta
-                    </button>
-
-                </div>
-
-            </form>
-
-        </div>
-    `;
-
-
-    document.body.appendChild(
-        modal
-    );
-
-
-    activateDynamicModal(
-        modal
-    );
-
-
-    document
-        .getElementById(
-            "goalForm"
-        )
-        .addEventListener(
-            "submit",
-            async event => {
-
-                event.preventDefault();
-
-                await saveGoal(
-                    modal
-                );
-            }
-        );
-}
-
-
-/* =========================================================
-   43. GUARDAR META
-========================================================= */
-
-async function saveGoal(
-    modal
-) {
-
-    const nombre =
-        document
-            .getElementById(
-                "goalName"
-            )
-            .value
-            .trim();
-
-
-    const monto_objetivo =
-        Number(
-            document
-                .getElementById(
-                    "goalTarget"
-                )
-                .value
-        );
-
-
-    const monto_actual =
-        Number(
-            document
-                .getElementById(
-                    "goalCurrent"
-                )
-                .value ||
-            0
-        );
-
-
-    const descripcion =
-        document
-            .getElementById(
-                "goalDescription"
-            )
-            .value
-            .trim();
-
-
-    if (
-        !nombre ||
-        !monto_objetivo
-    ) {
-
-        showToast(
-            "Completa los campos obligatorios.",
-            "warning"
-        );
-
-        return;
-    }
-
-
-    try {
-
-        const {
-            error
-        } =
-            await supabaseClient
-                .from("metas")
-                .insert({
-
-                    user_id:
-                        currentUser.id,
-
-                    nombre,
-
-                    monto_objetivo,
-
-                    monto_actual,
-
-                    descripcion:
-                        descripcion ||
-                        null
-                });
-
-
-        if (error) {
-            throw error;
-        }
-
-
-        showToast(
-            "Meta creada correctamente.",
-            "success"
-        );
-
-
-        modal.remove();
-
-        await loadGoalsPage();
-
-        await loadGoalsPreview();
-
-        await loadDashboard();
-
-    } catch (error) {
-
-        console.error(
-            "❌ Error creando meta:",
-            error
-        );
-
-        showToast(
-            error?.message ||
-            "No se pudo crear la meta.",
-            "error"
-        );
-    }
-}
-
-
-/* =========================================================
-   44. MODALES DINÁMICOS
-========================================================= */
-
-function createDynamicModal(
-    id
-) {
-
-    const existing =
-        document.getElementById(
-            id
-        );
-
-    if (existing) {
-        existing.remove();
-    }
-
-
-    const modal =
-        document.createElement(
-            "div"
-        );
-
-    modal.id =
-        id;
-
-    modal.className =
-        "modal-overlay active";
-
-    modal.setAttribute(
-        "aria-hidden",
-        "false"
-    );
-
-
-    return modal;
-}
-
-
-function activateDynamicModal(
-    modal
-) {
-
-    document.body.appendChild(
-        modal
-    );
-
-    document.body.classList.add(
-        "modal-open"
-    );
-
-
-    modal
         .querySelectorAll(
-            "[data-close-dynamic]"
+            "[data-action]"
         )
-        .forEach(
-            button => {
-
-                button.addEventListener(
-                    "click",
-                    () => {
-                        modal.remove();
-
-                        if (
-                            !document
-                                .querySelector(
-                                    ".modal-overlay"
-                                )
-                        ) {
-                            document.body.classList.remove(
-                                "modal-open"
-                            );
-                        }
-                    }
-                );
-            }
-        );
-
-
-    modal.addEventListener(
-        "click",
-        event => {
-
+        .forEach(button => {
             if (
-                event.target ===
-                modal
+                button.dataset
+                    .transactionBound
             ) {
-                modal.remove();
-
-                document.body.classList.remove(
-                    "modal-open"
-                );
-            }
-        }
-    );
-}
-
-
-/* =========================================================
-   45. MODAL ESTÁTICO
-========================================================= */
-
-function openModal(
-    id
-) {
-
-    const modal =
-        document.getElementById(
-            id
-        );
-
-    if (!modal) return;
-
-    modal.classList.add(
-        "active"
-    );
-
-    modal.setAttribute(
-        "aria-hidden",
-        "false"
-    );
-
-    document.body.classList.add(
-        "modal-open"
-    );
-}
-
-
-function closeModal(
-    id
-) {
-
-    const modal =
-        document.getElementById(
-            id
-        );
-
-    if (!modal) return;
-
-    modal.classList.remove(
-        "active"
-    );
-
-    modal.setAttribute(
-        "aria-hidden",
-        "true"
-    );
-
-    document.body.classList.remove(
-        "modal-open"
-    );
-}
-
-
-function closeAllModals() {
-
-    document
-        .querySelectorAll(
-            ".modal-overlay"
-        )
-        .forEach(
-            modal => {
-
-                modal.classList.remove(
-                    "active"
-                );
-
-                if (
-                    modal.id !==
-                    "createUserModal"
-                ) {
-                    modal.remove();
-                }
-            }
-        );
-
-    document.body.classList.remove(
-        "modal-open"
-    );
-}
-
-
-/* =========================================================
-   46. OLVIDÉ CONTRASEÑA
-========================================================= */
-
-function setupForgotPassword() {
-
-    const button =
-        document.getElementById(
-            "forgotPassword"
-        );
-
-    button?.addEventListener(
-        "click",
-        async event => {
-
-            event.preventDefault();
-
-            const email =
-                loginEmail?.value.trim();
-
-
-            if (!email) {
-
-                showToast(
-                    "Escribe primero tu correo electrónico.",
-                    "warning"
-                );
-
-                loginEmail?.focus();
-
                 return;
             }
 
+            const action =
+                String(
+                    button.dataset
+                        .action || ""
+                ).toLowerCase();
 
-            try {
+            const validActions = [
+                "nuevo-ingreso",
+                "nuevo-salida",
+                "nuevo-aporte",
+                "nueva-meta"
+            ];
 
-                const {
-                    error
-                } =
-                    await supabaseClient
-                        .auth
-                        .resetPasswordForEmail(
-                            email,
-                            {
-                                redirectTo:
-                                    window.location
-                                        .origin
-                            }
-                        );
-
-
-                if (error) {
-                    throw error;
-                }
-
-
-                showToast(
-                    "Revisa tu correo para restablecer tu contraseña.",
-                    "success"
-                );
-
-            } catch (error) {
-
-                console.error(
-                    error
-                );
-
-                showToast(
-                    error?.message ||
-                    "No se pudo enviar el correo.",
-                    "error"
-                );
+            if (
+                !validActions.includes(
+                    action
+                )
+            ) {
+                return;
             }
-        }
-    );
-}
 
+            button.dataset.transactionBound =
+                "true";
 
-/* =========================================================
-   47. NOTIFICACIONES
-========================================================= */
+            button.addEventListener(
+                "click",
+                () => {
+                    const sectionMap = {
+                        "nuevo-ingreso":
+                            "ingresos",
 
-function setupNotificationButton() {
+                        "nuevo-salida":
+                            "salidas",
 
-    const button =
-        document.querySelector(
-            ".topbar-icon"
-        );
+                        "nuevo-aporte":
+                            "aportes",
 
-    button?.addEventListener(
-        "click",
-        () => {
+                        "nueva-meta":
+                            "metas"
+                    };
 
-            showToast(
-                "No tienes nuevas notificaciones.",
-                "info"
+                    showSection(
+                        sectionMap[
+                            action
+                        ]
+                    );
+                }
             );
-        }
-    );
+        });
 }
 
 
 /* =========================================================
-   48. PERFIL
-========================================================= */
+   34. TECLADO / UX
+   ========================================================= */
 
-function setupProfileButton() {
-
-    const button =
-        document.querySelector(
-            ".profile-menu"
-        );
-
-    button?.addEventListener(
-        "click",
-        () => {
-
-            showToast(
-                "El menú de perfil estará disponible próximamente.",
-                "info"
-            );
-        }
-    );
-}
-
-
-/* =========================================================
-   49. ESCAPE
-========================================================= */
-
-function setupEscapeKey() {
-
+function setupKeyboardUX() {
     document.addEventListener(
         "keydown",
         event => {
-
             if (
                 event.key ===
                 "Escape"
             ) {
+                closeSidebar();
+                closeCreateUserModal();
+            }
+        }
+    );
+}
 
-                closeAllModals();
 
+/* =========================================================
+   35. AUTH STATE
+   ========================================================= */
+
+function setupAuthListener() {
+    if (!supabaseClient) {
+        return;
+    }
+
+    supabaseClient.auth.onAuthStateChange(
+        async (
+            event,
+            session
+        ) => {
+            console.log(
+                "🔐 Cambio de autenticación:",
+                event
+            );
+
+            if (
+                session?.user
+            ) {
+                currentUser =
+                    session.user;
+
+                /*
+                 * INITIAL_SESSION y SIGNED_IN
+                 * son suficientes para inicializar.
+                 */
+                if (
+                    event ===
+                        "SIGNED_IN" ||
+                    event ===
+                        "INITIAL_SESSION"
+                ) {
+                    /*
+                     * Evitamos trabajo duplicado
+                     * cuando Supabase dispara
+                     * ambos eventos.
+                     */
+                    await initializeAuthenticatedApp();
+                }
+            } else if (
+                event ===
+                    "SIGNED_OUT" ||
+                event ===
+                    "USER_DELETED"
+            ) {
+                currentUser =
+                    null;
+
+                currentProfile =
+                    null;
+
+                showLogin();
+            }
+        }
+    );
+}
+
+
+/* =========================================================
+   36. EVENTOS PRINCIPALES
+   ========================================================= */
+
+function setupMainEvents() {
+    loginForm?.addEventListener(
+        "submit",
+        handleLogin
+    );
+
+    logoutButton?.addEventListener(
+        "click",
+        logout
+    );
+}
+
+
+/* =========================================================
+   37. DETECTAR CAMBIO DE TAMAÑO
+   ========================================================= */
+
+function setupResponsiveUX() {
+    window.addEventListener(
+        "resize",
+        debounce(() => {
+            if (
+                window.innerWidth >
+                1024
+            ) {
                 closeSidebar();
             }
-        }
+        }, 150)
     );
 }
 
 
 /* =========================================================
-   50. TOAST
-========================================================= */
+   38. INICIALIZACIÓN
+   ========================================================= */
 
-function showToast(
-    message,
-    type = "info"
-) {
-
-    let container =
-        document.getElementById(
-            "toast-container"
-        );
-
-
-    if (!container) {
-
-        container =
-            document.createElement(
-                "div"
-            );
-
-        container.id =
-            "toast-container";
-
-        document.body.appendChild(
-            container
-        );
-    }
-
-
-    const toast =
-        document.createElement(
-            "div"
-        );
-
-    toast.className =
-        `toast toast-${type}`;
-
-
-    const icons = {
-
-        success:
-            "fa-check-circle",
-
-        error:
-            "fa-times-circle",
-
-        warning:
-            "fa-exclamation-triangle",
-
-        info:
-            "fa-info-circle"
-    };
-
-
-    toast.innerHTML = `
-
-        <i class="fas ${
-            icons[type] ||
-            icons.info
-        }"></i>
-
-        <span>
-            ${escapeHTML(
-                message
-            )}
-        </span>
-
-        <button
-            type="button"
-            class="toast-close"
-        >
-            &times;
-        </button>
-
-    `;
-
-
-    container.appendChild(
-        toast
+async function init() {
+    console.log(
+        "💰 FinanzasPersonales listo."
     );
 
+    injectRuntimeStyles();
 
-    toast
-        .querySelector(
-            ".toast-close"
-        )
-        ?.addEventListener(
-            "click",
-            () => {
-                removeToast(
-                    toast
-                );
-            }
-        );
+    setupMainEvents();
 
+    setupPasswordToggle();
 
-    requestAnimationFrame(
-        () => {
-            toast.classList.add(
-                "show"
-            );
-        }
-    );
+    setupNavigation();
 
+    setupSidebar();
 
-    setTimeout(
-        () => {
-            removeToast(
-                toast
-            );
-        },
-        5000
-    );
-}
+    setupTheme();
 
+    setupModalEvents();
 
-function removeToast(
-    toast
-) {
+    setupPasswordGenerator();
 
-    if (!toast) return;
+    setupUserFilters();
 
-    toast.classList.remove(
-        "show"
-    );
+    setupQuickActions();
 
-    setTimeout(
-        () => {
-            toast.remove();
-        },
-        300
-    );
+    setupTransactionButtons();
+
+    setupKeyboardUX();
+
+    setupResponsiveUX();
+
+    setupAuthListener();
+
+    await checkSession();
 }
 
 
 /* =========================================================
-   51. UTILIDADES
-========================================================= */
-
-function sumAmounts(
-    items = []
-) {
-
-    return items.reduce(
-        (
-            total,
-            item
-        ) => {
-
-            const amount =
-                Number(
-                    item.monto ??
-                    0
-                );
-
-            return (
-                total +
-                (
-                    Number.isFinite(
-                        amount
-                    )
-                        ? amount
-                        : 0
-                )
-            );
-        },
-        0
-    );
-}
-
-
-function formatMoney(
-    amount = 0
-) {
-
-    const currency =
-        currentProfile?.moneda ||
-        "PEN";
-
-
-    try {
-
-        return new Intl.NumberFormat(
-            "es-PE",
-            {
-                style:
-                    "currency",
-
-                currency,
-
-                minimumFractionDigits:
-                    2
-            }
-        ).format(
-            Number(amount) || 0
-        );
-
-    } catch {
-
-        return `S/ ${
-            Number(
-                amount
-            ).toFixed(2)
-        }`;
-    }
-}
-
-
-function formatDate(
-    date
-) {
-
-    if (!date) {
-        return "Sin fecha";
-    }
-
-    const parsed =
-        new Date(date);
-
-
-    if (
-        Number.isNaN(
-            parsed.getTime()
-        )
-    ) {
-        return "Sin fecha";
-    }
-
-
-    return new Intl.DateTimeFormat(
-        "es-PE",
-        {
-            day:
-                "2-digit",
-
-            month:
-                "2-digit",
-
-            year:
-                "numeric"
-        }
-    ).format(
-        parsed
-    );
-}
-
-
-function getToday() {
-
-    const date =
-        new Date();
-
-    const year =
-        date.getFullYear();
-
-    const month =
-        String(
-            date.getMonth() + 1
-        ).padStart(
-            2,
-            "0"
-        );
-
-    const day =
-        String(
-            date.getDate()
-        ).padStart(
-            2,
-            "0"
-        );
-
-    return `${year}-${month}-${day}`;
-}
-
-
-function getInitials(
-    name = ""
-) {
-
-    const parts =
-        String(name)
-            .trim()
-            .split(/\s+/)
-            .filter(Boolean);
-
-
-    if (!parts.length) {
-        return "U";
-    }
-
-
-    if (
-        parts.length === 1
-    ) {
-
-        return parts[0]
-            .substring(
-                0,
-                2
-            )
-            .toUpperCase();
-    }
-
-
-    return (
-        parts[0][0] +
-        parts[
-            parts.length - 1
-        ][0]
-    ).toUpperCase();
-}
-
-
-function formatRole(
-    role
-) {
-
-    const roles = {
-
-        admin:
-            "Administrador",
-
-        administrador:
-            "Administrador",
-
-        superadmin:
-            "Super administrador",
-
-        usuario:
-            "Usuario",
-
-        user:
-            "Usuario"
-    };
-
-
-    return (
-        roles[
-            String(
-                role
-            ).toLowerCase()
-        ] ||
-        role ||
-        "Usuario"
-    );
-}
-
-
-function setText(
-    selector,
-    value
-) {
-
-    document
-        .querySelectorAll(
-            selector
-        )
-        .forEach(
-            element => {
-
-                element.textContent =
-                    value ??
-                    "";
-            }
-        );
-}
-
-
-/* =========================================================
-   52. ERRORES LOGIN
-========================================================= */
-
-function getFriendlyAuthError(
-    error
-) {
-
-    const message =
-        String(
-            error?.message ||
-            ""
-        ).toLowerCase();
-
-
-    if (
-        message.includes(
-            "invalid login credentials"
-        )
-    ) {
-        return "Correo o contraseña incorrectos.";
-    }
-
-
-    if (
-        message.includes(
-            "email not confirmed"
-        )
-    ) {
-        return "Tu correo todavía no ha sido confirmado.";
-    }
-
-
-    if (
-        message.includes(
-            "too many requests"
-        )
-    ) {
-        return "Demasiados intentos. Espera unos minutos.";
-    }
-
-
-    return (
-        error?.message ||
-        "No se pudo iniciar sesión."
-    );
-}
-
-
-/* =========================================================
-   53. SEGURIDAD HTML
-========================================================= */
-
-function escapeHTML(
-    value
-) {
-
-    return String(
-        value ?? ""
-    )
-        .replace(
-            /&/g,
-            "&amp;"
-        )
-        .replace(
-            /</g,
-            "&lt;"
-        )
-        .replace(
-            />/g,
-            "&gt;"
-        )
-        .replace(
-            /"/g,
-            "&quot;"
-        )
-        .replace(
-            /'/g,
-            "&#039;"
-        );
-}
-
-
-/* =========================================================
-   54. DEBUG
-========================================================= */
+   39. API GLOBAL
+   ========================================================= */
 
 window.FinanzasApp = {
+    getCurrentUser: () =>
+        currentUser,
 
-    getCurrentUser:
-        () => currentUser,
+    getCurrentProfile: () =>
+        currentProfile,
 
-    getCurrentProfile:
-        () => currentProfile,
+    isAdmin,
+
+    formatMoney,
+
+    formatDate,
+
+    showToast,
 
     showSection,
 
@@ -4460,22 +3825,29 @@ window.FinanzasApp = {
 
     loadReports,
 
-    openModal,
+    logout,
 
-    closeModal,
+    openCreateUserModal,
 
-    showToast,
-
-    formatMoney,
-
-    formatDate,
-
-    openTransactionModal,
-
-    openGoalModal
+    closeCreateUserModal
 };
 
 
-console.log(
-    "💰 FinanzasPersonales listo."
-);
+/* =========================================================
+   40. ARRANQUE
+   ========================================================= */
+
+if (
+    document.readyState ===
+    "loading"
+) {
+    document.addEventListener(
+        "DOMContentLoaded",
+        init,
+        {
+            once: true
+        }
+    );
+} else {
+    init();
+}
