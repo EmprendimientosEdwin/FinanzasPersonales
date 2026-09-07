@@ -104,6 +104,7 @@ const mobileMenuButton = document.getElementById("mobileMenuBtn");
 const sidebarCloseButton = document.getElementById("sidebarClose");
 
 const navItems = document.querySelectorAll("[data-section]");
+const pageSections = document.querySelectorAll(".page-section");
 
 /* =========================================================
    4. INICIALIZACIÓN
@@ -615,9 +616,6 @@ function setupPasswordToggle() {
 /* =========================================================
    15. NAVEGACIÓN
    ========================================================= */
-
-const navItems = document.querySelectorAll("[data-section]");
-
 function setupNavigation() {
     navItems.forEach((item) => {
         item.addEventListener(
