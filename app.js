@@ -8,32 +8,66 @@
    ========================================================= */
 
 const SUPABASE_URL = "https://xwkxgrktsdejoaqnbiwk.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_DYl24WF6mNud6QsS4nhhYA_53ohH191";
+
+const SUPABASE_ANON_KEY =
+    "sb_publishable_DYl24WF6mNud6QsS4nhhYA_53ohH191";
 
 let supabaseClient = null;
+
+
+/* =========================================================
+   INICIALIZAR SUPABASE
+========================================================= */
 
 if (
     window.supabase &&
     SUPABASE_URL &&
-    SUPABASE_ANON_KEY &&
-    SUPABASE_ANON_KEY !== "sb_publishable_DYl24WF6mNud6QsS4nhhYA_53ohH191"
+    SUPABASE_ANON_KEY
 ) {
     try {
+
         supabaseClient = window.supabase.createClient(
             SUPABASE_URL,
             SUPABASE_ANON_KEY
         );
 
-        console.log("✅ Supabase conectado correctamente");
-    } catch (error) {
-        console.error("❌ Error inicializando Supabase:", error);
-    }
-} else {
-    console.warn(
-        "⚠️ Supabase no está configurado. Revisa SUPABASE_URL y SUPABASE_ANON_KEY."
-    );
-}
+        console.log(
+            "✅ Supabase conectado correctamente"
+        );
 
+    } catch (error) {
+
+        console.error(
+            "❌ Error inicializando Supabase:",
+            error
+        );
+
+    }
+
+} else {
+
+    console.error(
+        "❌ Supabase no está disponible."
+    );
+
+    if (!window.supabase) {
+        console.error(
+            "❌ La librería Supabase no fue cargada."
+        );
+    }
+
+    if (!SUPABASE_URL) {
+        console.error(
+            "❌ SUPABASE_URL está vacío."
+        );
+    }
+
+    if (!SUPABASE_ANON_KEY) {
+        console.error(
+            "❌ SUPABASE_ANON_KEY está vacío."
+        );
+    }
+}
 
 /* =========================================================
    2. VARIABLES GLOBALES
@@ -52,33 +86,38 @@ let allUsers = [];
    3. ELEMENTOS DEL DOM
    ========================================================= */
 
-const loginScreen = document.getElementById("login-screen");
-const appContainer = document.getElementById("app-container");
+const loginScreen =
+    document.getElementById("loginScreen");
 
-const loginForm = document.getElementById("login-form");
-const loginEmail = document.getElementById("login-email");
-const loginPassword = document.getElementById("login-password");
+const appContainer =
+    document.getElementById("appContainer");
 
-const passwordToggle = document.getElementById("password-toggle");
+const loginForm =
+    document.getElementById("loginForm");
 
-const logoutButton = document.getElementById("logout-btn");
+const loginEmail =
+    document.getElementById("loginEmail");
 
-const sidebar = document.getElementById("sidebar");
-const sidebarOverlay = document.getElementById("sidebar-overlay");
+const loginPassword =
+    document.getElementById("loginPassword");
 
-const mobileMenuButton = document.getElementById("mobile-menu-btn");
-const sidebarCloseButton = document.getElementById("sidebar-close");
+const passwordToggle =
+    document.getElementById("passwordToggle");
 
-const navItems = document.querySelectorAll("[data-section]");
+const logoutButton =
+    document.getElementById("logoutBtn");
 
-const pageSections = document.querySelectorAll(".page-section");
+const sidebar =
+    document.getElementById("sidebar");
 
-const toastContainer =
-    document.getElementById("toast-container") ||
-    document.getElementById("toast");
+const sidebarOverlay =
+    document.getElementById("sidebarOverlay");
 
-const modalOverlay = document.getElementById("modal-overlay");
+const mobileMenuButton =
+    document.getElementById("mobileMenuBtn");
 
+const sidebarCloseButton =
+    document.getElementById("sidebarClose");
 
 /* =========================================================
    4. INICIALIZACIÓN
