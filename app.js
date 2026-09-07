@@ -900,20 +900,28 @@ async function loadDashboard() {
    ========================================================= */
 
 async function getTransactions(tableName) {
+    if (!currentUser?.id) {
+        console.warn(
+            `⚠️ No hay usuario autenticado para cargar ${tableName}`
+        );
+
+        return [];
+    }
+
     const {
         data,
         error
     } = await supabaseClient
         .from(tableName)
         .select("*")
-        .eq("usuario_id", currentUser.id)
+        .eq("user_id", currentUser.id)
         .order("created_at", {
             ascending: false
         });
 
     if (error) {
         console.error(
-            `Error cargando ${tableName}:`,
+            `❌ Error cargando ${tableName}:`,
             error
         );
 
@@ -935,22 +943,22 @@ function updateDashboardNumbers({
     balance
 }) {
     setText(
-        "[data-total-income]",
+        "[data-total-income], #incomeValue",
         formatMoney(totalIngresos)
     );
 
     setText(
-        "[data-total-expenses]",
+        "[data-total-expenses], #expenseValue",
         formatMoney(totalSalidas)
     );
 
     setText(
-        "[data-total-contributions]",
+        "[data-total-contributions], #contributionValue",
         formatMoney(totalAportes)
     );
 
     setText(
-        "[data-balance]",
+        "[data-balance], #balanceValue",
         formatMoney(balance)
     );
 
@@ -1055,12 +1063,9 @@ async function loadRecentActivity(
     aportes
 ) {
     const container =
-        document.querySelector(
-            "[data-recent-activity]"
-        ) ||
-        document.getElementById(
-            "recent-activity"
-        );
+        document.querySelector("[data-recent-activity]") ||
+        document.getElementById("recentActivity") ||
+        document.getElementById("recent-activity");
 
     if (!container) return;
 
@@ -1182,7 +1187,7 @@ async function loadGoalsPreview() {
         } = await supabaseClient
             .from("metas")
             .select("*")
-            .eq("usuario_id", currentUser.id)
+            .eq("user_id", currentUser.id)
             .order("created_at", {
                 ascending: false
             })
@@ -1222,19 +1227,15 @@ async function loadGoalsPreview() {
     }
 }
 
-
 /* =========================================================
    24. PÁGINA DE METAS
    ========================================================= */
 
 async function loadGoalsPage() {
     const container =
-        document.querySelector(
-            "[data-goals-list]"
-        ) ||
-        document.getElementById(
-            "goals-list"
-        );
+        document.querySelector("[data-goals-list]") ||
+        document.getElementById("goalsPageContainer") ||
+        document.getElementById("goals-list");
 
     if (!container) return;
 
@@ -1245,7 +1246,7 @@ async function loadGoalsPage() {
         } = await supabaseClient
             .from("metas")
             .select("*")
-            .eq("usuario_id", currentUser.id)
+            .eq("user_id", currentUser.id)
             .order("created_at", {
                 ascending: false
             });
@@ -1397,25 +1398,25 @@ async function loadReports() {
             totalSalidas -
             totalAportes;
 
-        setText(
-            "[data-report-income]",
-            formatMoney(totalIngresos)
-        );
+         setText(
+          "[data-report-income], #reportIncome",
+          formatMoney(totalIngresos)
+      );
 
-        setText(
-            "[data-report-expenses]",
-            formatMoney(totalSalidas)
-        );
+         setText(
+          "[data-report-expenses], #reportExpense",
+          formatMoney(totalSalidas)
+      );
 
-        setText(
-            "[data-report-contributions]",
-            formatMoney(totalAportes)
-        );
+         setText(
+          "[data-report-contributions], #reportContribution",
+          formatMoney(totalAportes)
+      );
 
-        setText(
-            "[data-report-balance]",
-            formatMoney(balance)
-        );
+         setText(
+          "[data-report-balance], #reportBalance",
+       formatMoney(balance)
+      );
 
         loadExpenseChart(salidas);
 
