@@ -86,38 +86,22 @@ let allUsers = [];
    3. ELEMENTOS DEL DOM
    ========================================================= */
 
-const loginScreen =
-    document.getElementById("loginScreen");
+const loginScreen = document.getElementById("loginScreen");
+const appContainer = document.getElementById("appContainer");
 
-const appContainer =
-    document.getElementById("appContainer");
+const loginForm = document.getElementById("loginForm");
+const loginEmail = document.getElementById("loginEmail");
+const loginPassword = document.getElementById("loginPassword");
 
-const loginForm =
-    document.getElementById("loginForm");
+const passwordToggle = document.getElementById("passwordToggle");
 
-const loginEmail =
-    document.getElementById("loginEmail");
+const logoutButton = document.getElementById("logoutBtn");
 
-const loginPassword =
-    document.getElementById("loginPassword");
+const sidebar = document.getElementById("sidebar");
+const sidebarOverlay = document.getElementById("sidebarOverlay");
 
-const passwordToggle =
-    document.getElementById("passwordToggle");
-
-const logoutButton =
-    document.getElementById("logoutBtn");
-
-const sidebar =
-    document.getElementById("sidebar");
-
-const sidebarOverlay =
-    document.getElementById("sidebarOverlay");
-
-const mobileMenuButton =
-    document.getElementById("mobileMenuBtn");
-
-const sidebarCloseButton =
-    document.getElementById("sidebarClose");
+const mobileMenuButton = document.getElementById("mobileMenuBtn");
+const sidebarCloseButton = document.getElementById("sidebarClose");
 
 /* =========================================================
    4. INICIALIZACIÓN
