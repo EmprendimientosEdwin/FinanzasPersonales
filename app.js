@@ -1,14 +1,17 @@
-/* =========================================================
-   FINANZASPERSONALES - APP.JS PRO MAX
-   ========================================================= */
+/* ============================================================
+   FINANZASPERSONALES
+   APP.JS — PRO MAX
+   ============================================================ */
 
 "use strict";
 
-/* =========================================================
-   1. CONFIGURACIÓN SUPABASE
-   ========================================================= */
 
-const SUPABASE_URL = "https://xwkxgrktsdejoaqnbiwk.supabase.co";
+/* ============================================================
+   1. SUPABASE
+   ============================================================ */
+
+const SUPABASE_URL =
+    "https://xwkxgrktsdejoaqnbiwk.supabase.co";
 
 const SUPABASE_ANON_KEY =
     "sb_publishable_DYl24WF6mNud6QsS4nhhYA_53ohH191";
@@ -21,12 +24,15 @@ if (
     SUPABASE_ANON_KEY
 ) {
     try {
-        supabaseClient = window.supabase.createClient(
-            SUPABASE_URL,
-            SUPABASE_ANON_KEY
-        );
+        supabaseClient =
+            window.supabase.createClient(
+                SUPABASE_URL,
+                SUPABASE_ANON_KEY
+            );
 
-        console.log("✅ Supabase conectado correctamente");
+        console.log(
+            "✅ Supabase conectado correctamente"
+        );
     } catch (error) {
         console.error(
             "❌ Error inicializando Supabase:",
@@ -35,349 +41,133 @@ if (
     }
 } else {
     console.error(
-        "❌ Supabase no está disponible. Revisa la librería y configuración."
+        "❌ Supabase no está disponible."
     );
 }
 
 
-/* =========================================================
+/* ============================================================
    2. ESTADO GLOBAL
-   ========================================================= */
+   ============================================================ */
 
 let currentUser = null;
 let currentProfile = null;
 
-let allUsers = [];
 let currentSection = "dashboard";
 
-let flowChartInstance = null;
-let expenseChartInstance = null;
+let allUsers = [];
 
-let dashboardCache = {
+let charts = {
+    flow: null,
+    expenses: null
+};
+
+let financeData = {
     ingresos: [],
     salidas: [],
     aportes: [],
     metas: []
 };
 
+let isInitializing = false;
 
-/* =========================================================
-   3. DOM
-   ========================================================= */
+
+/* ============================================================
+   3. DOM PRINCIPAL
+   ============================================================ */
 
 const loginScreen =
-    document.getElementById("loginScreen");
+    document.getElementById(
+        "loginScreen"
+    );
 
 const appContainer =
-    document.getElementById("appContainer");
+    document.getElementById(
+        "appContainer"
+    );
 
 const loginForm =
-    document.getElementById("loginForm");
+    document.getElementById(
+        "loginForm"
+    );
 
 const loginEmail =
-    document.getElementById("loginEmail");
+    document.getElementById(
+        "loginEmail"
+    );
 
 const loginPassword =
-    document.getElementById("loginPassword");
+    document.getElementById(
+        "loginPassword"
+    );
 
 const passwordToggle =
-    document.getElementById("passwordToggle");
+    document.getElementById(
+        "passwordToggle"
+    );
 
 const logoutButton =
-    document.getElementById("logoutBtn");
+    document.getElementById(
+        "logoutBtn"
+    );
 
 const sidebar =
-    document.getElementById("sidebar");
+    document.getElementById(
+        "sidebar"
+    );
 
 const sidebarOverlay =
-    document.getElementById("sidebarOverlay");
+    document.getElementById(
+        "sidebarOverlay"
+    );
 
 const mobileMenuButton =
-    document.getElementById("mobileMenuBtn");
+    document.getElementById(
+        "mobileMenuBtn"
+    );
 
 const sidebarCloseButton =
-    document.getElementById("sidebarClose");
-
-const navItems =
-    document.querySelectorAll("[data-section]");
-
-const pageSections =
-    document.querySelectorAll(".page-section");
+    document.getElementById(
+        "sidebarClose"
+    );
 
 
-/* =========================================================
-   4. UTILIDADES DOM
-   ========================================================= */
+/* ============================================================
+   4. UTILIDADES
+   ============================================================ */
+
+function $(selector) {
+    return document.querySelector(
+        selector
+    );
+}
+
 
 function getElement(...selectors) {
-    for (const selector of selectors) {
+    for (
+        const selector of selectors
+    ) {
         if (!selector) continue;
 
         const element =
-            typeof selector === "string"
-                ? document.querySelector(selector)
+            typeof selector ===
+            "string"
+                ? document.querySelector(
+                      selector
+                  )
                 : selector;
 
-        if (element) return element;
+        if (element) {
+            return element;
+        }
     }
 
     return null;
 }
 
 
-function setText(value, ...selectors) {
-    const element = getElement(...selectors);
-
-    if (!element) return;
-
-    element.textContent =
-        value === null ||
-        value === undefined ||
-        value === ""
-            ? "—"
-            : value;
-}
-
-
-function setHTML(html, ...selectors) {
-    const element = getElement(...selectors);
-
-    if (!element) return;
-
-    element.innerHTML = html;
-}
-
-
-function escapeHTML(value) {
-    if (value === null || value === undefined) {
-        return "";
-    }
-
-    return String(value)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-}
-
-
-function debounce(callback, delay = 300) {
-    let timeout;
-
-    return (...args) => {
-        clearTimeout(timeout);
-
-        timeout = setTimeout(() => {
-            callback(...args);
-        }, delay);
-    };
-}
-
-
-/* =========================================================
-   5. FORMATO DE MONEDA
-   ========================================================= */
-
-function getCurrency() {
-    return currentProfile?.moneda || "PEN";
-}
-
-
-function formatMoney(value) {
-    const amount = Number(value) || 0;
-
-    try {
-        return new Intl.NumberFormat("es-PE", {
-            style: "currency",
-            currency: getCurrency(),
-            minimumFractionDigits: 2
-        }).format(amount);
-    } catch {
-        return `S/ ${amount.toFixed(2)}`;
-    }
-}
-
-
-function formatNumber(value) {
-    const amount = Number(value) || 0;
-
-    return new Intl.NumberFormat("es-PE", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-    }).format(amount);
-}
-
-
-function formatDate(date) {
-    if (!date) return "—";
-
-    try {
-        return new Intl.DateTimeFormat("es-PE", {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric"
-        }).format(new Date(date));
-    } catch {
-        return date;
-    }
-}
-
-
-function getInitials(nombre, apellido) {
-    const first =
-        String(nombre || "")
-            .trim()
-            .charAt(0)
-            .toUpperCase();
-
-    const last =
-        String(apellido || "")
-            .trim()
-            .charAt(0)
-            .toUpperCase();
-
-    return (
-        `${first}${last}` ||
-        String(currentUser?.email || "U")
-            .charAt(0)
-            .toUpperCase()
-    );
-}
-
-
-/* =========================================================
-   6. TOASTS
-   ========================================================= */
-
-function showToast(
-    message,
-    type = "info",
-    duration = 4000
-) {
-    let container =
-        document.getElementById("toast-container");
-
-    if (!container) {
-        container = document.createElement("div");
-
-        container.id = "toast-container";
-
-        container.style.position = "fixed";
-        container.style.top = "20px";
-        container.style.right = "20px";
-        container.style.zIndex = "99999";
-        container.style.display = "flex";
-        container.style.flexDirection = "column";
-        container.style.gap = "10px";
-        container.style.maxWidth = "380px";
-
-        document.body.appendChild(container);
-    }
-
-    const toast =
-        document.createElement("div");
-
-    const icons = {
-        success: "✓",
-        error: "✕",
-        warning: "!",
-        info: "i"
-    };
-
-    toast.innerHTML = `
-        <div style="
-            display:flex;
-            align-items:center;
-            gap:12px;
-        ">
-            <span style="
-                width:30px;
-                height:30px;
-                border-radius:50%;
-                display:flex;
-                align-items:center;
-                justify-content:center;
-                background:rgba(255,255,255,.15);
-                font-weight:800;
-            ">
-                ${icons[type] || "i"}
-            </span>
-
-            <span style="
-                flex:1;
-                line-height:1.4;
-            ">
-                ${escapeHTML(message)}
-            </span>
-
-            <button
-                type="button"
-                style="
-                    border:0;
-                    background:none;
-                    color:inherit;
-                    cursor:pointer;
-                    font-size:18px;
-                    opacity:.7;
-                "
-            >×</button>
-        </div>
-    `;
-
-    const backgrounds = {
-        success: "#15803d",
-        error: "#b91c1c",
-        warning: "#b45309",
-        info: "#1d4ed8"
-    };
-
-    toast.style.background =
-        backgrounds[type] || backgrounds.info;
-
-    toast.style.color = "#fff";
-    toast.style.padding = "14px 16px";
-    toast.style.borderRadius = "14px";
-    toast.style.boxShadow =
-        "0 15px 40px rgba(0,0,0,.22)";
-    toast.style.fontSize = "14px";
-    toast.style.animation =
-        "finanzasToastIn .3s ease";
-
-    const closeButton =
-        toast.querySelector("button");
-
-    closeButton?.addEventListener(
-        "click",
-        () => toast.remove()
-    );
-
-    container.appendChild(toast);
-
-    setTimeout(() => {
-        if (toast.isConnected) {
-            toast.style.opacity = "0";
-            toast.style.transform =
-                "translateX(30px)";
-
-            toast.style.transition =
-                "all .3s ease";
-
-            setTimeout(
-                () => toast.remove(),
-                300
-            );
-        }
-    }, duration);
-}
-
-
-/* =========================================================
-   7. LOADING
-   ========================================================= */
-
-function setLoading(
-    loading,
+function setText(
+    value,
     ...selectors
 ) {
     const element =
@@ -385,151 +175,576 @@ function setLoading(
 
     if (!element) return;
 
-    if (loading) {
-        element.dataset.previousHtml =
-            element.innerHTML;
+    element.textContent =
+        value ??
+        "";
+}
 
-        element.innerHTML = `
-            <div style="
-                display:flex;
-                align-items:center;
-                justify-content:center;
-                gap:10px;
-                padding:30px;
-                opacity:.7;
-            ">
-                <span style="
-                    width:18px;
-                    height:18px;
-                    border:2px solid currentColor;
-                    border-right-color:transparent;
-                    border-radius:50%;
-                    animation:finanzasSpin .7s linear infinite;
-                "></span>
-                <span>Cargando...</span>
-            </div>
-        `;
-    } else if (
-        element.dataset.previousHtml
+
+function escapeHTML(value) {
+    if (
+        value === null ||
+        value === undefined
     ) {
-        element.innerHTML =
-            element.dataset.previousHtml;
+        return "";
+    }
 
-        delete element.dataset.previousHtml;
+    return String(value)
+        .replace(
+            /&/g,
+            "&amp;"
+        )
+        .replace(
+            /</g,
+            "&lt;"
+        )
+        .replace(
+            />/g,
+            "&gt;"
+        )
+        .replace(
+            /"/g,
+            "&quot;"
+        )
+        .replace(
+            /'/g,
+            "&#039;"
+        );
+}
+
+
+function debounce(
+    callback,
+    delay = 300
+) {
+    let timeout;
+
+    return (...args) => {
+        clearTimeout(timeout);
+
+        timeout =
+            setTimeout(
+                () =>
+                    callback(
+                        ...args
+                    ),
+                delay
+            );
+    };
+}
+
+
+/* ============================================================
+   5. MONEDA
+   ============================================================ */
+
+function getCurrency() {
+    return (
+        currentProfile?.moneda ||
+        "PEN"
+    );
+}
+
+
+function formatMoney(value) {
+    const amount =
+        Number(value) || 0;
+
+    try {
+        return new Intl.NumberFormat(
+            "es-PE",
+            {
+                style: "currency",
+                currency:
+                    getCurrency(),
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }
+        ).format(amount);
+    } catch {
+        return `S/ ${amount.toFixed(
+            2
+        )}`;
     }
 }
 
 
-/* =========================================================
-   8. ESTILOS DINÁMICOS NECESARIOS
-   ========================================================= */
+function formatDate(date) {
+    if (!date) return "—";
+
+    try {
+        return new Intl.DateTimeFormat(
+            "es-PE",
+            {
+                day: "2-digit",
+                month: "short",
+                year: "numeric"
+            }
+        ).format(
+            new Date(date)
+        );
+    } catch {
+        return String(date);
+    }
+}
+
+
+function formatDateInput(date) {
+    if (!date) return "";
+
+    const d =
+        new Date(date);
+
+    if (Number.isNaN(d.getTime())) {
+        return "";
+    }
+
+    return d
+        .toISOString()
+        .split("T")[0];
+}
+
+
+/* ============================================================
+   6. TOAST SYSTEM
+   ============================================================ */
+
+function showToast(
+    message,
+    type = "info",
+    duration = 4000
+) {
+    let container =
+        document.getElementById(
+            "toast-container"
+        );
+
+    if (!container) {
+        container =
+            document.createElement(
+                "div"
+            );
+
+        container.id =
+            "toast-container";
+
+        container.style.cssText = `
+            position:fixed;
+            top:20px;
+            right:20px;
+            z-index:999999;
+            display:flex;
+            flex-direction:column;
+            gap:10px;
+            width:min(380px,calc(100vw - 30px));
+        `;
+
+        document.body.appendChild(
+            container
+        );
+    }
+
+    const icons = {
+        success:
+            "fa-circle-check",
+        error:
+            "fa-circle-xmark",
+        warning:
+            "fa-triangle-exclamation",
+        info:
+            "fa-circle-info"
+    };
+
+    const colors = {
+        success:
+            "#16a34a",
+        error:
+            "#dc2626",
+        warning:
+            "#d97706",
+        info:
+            "#2563eb"
+    };
+
+    const toast =
+        document.createElement(
+            "div"
+        );
+
+    toast.style.cssText = `
+        background:${colors[type] || colors.info};
+        color:#fff;
+        padding:14px 16px;
+        border-radius:16px;
+        box-shadow:0 18px 50px rgba(0,0,0,.20);
+        font-size:14px;
+        animation:finanzasToastIn .3s ease;
+    `;
+
+    toast.innerHTML = `
+        <div style="
+            display:flex;
+            align-items:center;
+            gap:12px;
+        ">
+            <i class="
+                fa-solid
+                ${
+                    icons[type] ||
+                    icons.info
+                }
+            "></i>
+
+            <span style="
+                flex:1;
+                line-height:1.45;
+            ">
+                ${escapeHTML(
+                    message
+                )}
+            </span>
+
+            <button
+                type="button"
+                aria-label="Cerrar"
+                style="
+                    border:0;
+                    background:transparent;
+                    color:inherit;
+                    font-size:20px;
+                    cursor:pointer;
+                    opacity:.8;
+                "
+            >
+                ×
+            </button>
+        </div>
+    `;
+
+    const close =
+        toast.querySelector(
+            "button"
+        );
+
+    close?.addEventListener(
+        "click",
+        () => toast.remove()
+    );
+
+    container.appendChild(
+        toast
+    );
+
+    setTimeout(() => {
+        if (!toast.isConnected) {
+            return;
+        }
+
+        toast.style.opacity =
+            "0";
+
+        toast.style.transform =
+            "translateX(30px)";
+
+        toast.style.transition =
+            ".3s ease";
+
+        setTimeout(
+            () => toast.remove(),
+            300
+        );
+    }, duration);
+}
+
+
+/* ============================================================
+   7. ESTILOS RUNTIME
+   ============================================================ */
 
 function injectRuntimeStyles() {
     if (
         document.getElementById(
-            "finanzas-runtime-styles"
+            "finanzas-pro-runtime"
         )
     ) {
         return;
     }
 
     const style =
-        document.createElement("style");
+        document.createElement(
+            "style"
+        );
 
     style.id =
-        "finanzas-runtime-styles";
+        "finanzas-pro-runtime";
 
     style.textContent = `
-        @keyframes finanzasSpin {
-            to {
-                transform:rotate(360deg);
-            }
-        }
-
         @keyframes finanzasToastIn {
             from {
                 opacity:0;
                 transform:translateX(30px);
             }
-
             to {
                 opacity:1;
                 transform:translateX(0);
             }
         }
 
+        @keyframes finanzasSpin {
+            to {
+                transform:rotate(360deg);
+            }
+        }
+
+        .finanzas-loading {
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            gap:10px;
+            padding:35px;
+            opacity:.7;
+        }
+
+        .finanzas-spinner {
+            width:18px;
+            height:18px;
+            border:2px solid currentColor;
+            border-right-color:transparent;
+            border-radius:50%;
+            animation:finanzasSpin .7s linear infinite;
+        }
+
         .finanzas-empty {
-            padding:40px 20px;
             text-align:center;
+            padding:45px 20px;
             opacity:.65;
         }
 
-        .finanzas-error {
-            padding:25px;
-            text-align:center;
-            color:#b91c1c;
-        }
-
-        .status-badge {
-            display:inline-flex;
-            align-items:center;
-            gap:6px;
-            padding:5px 10px;
-            border-radius:999px;
-            font-size:12px;
-            font-weight:700;
-        }
-
-        .status-active {
-            background:rgba(34,197,94,.12);
-            color:#16a34a;
-        }
-
-        .status-inactive {
-            background:rgba(239,68,68,.12);
-            color:#dc2626;
-        }
-
-        .role-badge {
-            display:inline-flex;
-            padding:5px 10px;
-            border-radius:999px;
-            font-size:12px;
-            font-weight:700;
-            background:rgba(99,102,241,.12);
-            color:#6366f1;
-        }
-
-        .amount-positive {
+        .finance-positive {
             color:#16a34a;
             font-weight:800;
         }
 
-        .amount-negative {
+        .finance-negative {
             color:#dc2626;
             font-weight:800;
         }
 
-        .amount-contribution {
+        .finance-contribution {
             color:#7c3aed;
             font-weight:800;
         }
+
+        .finance-actions {
+            display:flex;
+            align-items:center;
+            gap:6px;
+        }
+
+        .finance-action {
+            width:34px;
+            height:34px;
+            border:0;
+            border-radius:10px;
+            cursor:pointer;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            transition:.2s ease;
+        }
+
+        .finance-action:hover {
+            transform:translateY(-2px);
+        }
+
+        .finance-edit {
+            background:rgba(37,99,235,.10);
+            color:#2563eb;
+        }
+
+        .finance-delete {
+            background:rgba(220,38,38,.10);
+            color:#dc2626;
+        }
+
+        .finance-modal-backdrop {
+            position:fixed;
+            inset:0;
+            z-index:99990;
+            background:rgba(15,23,42,.55);
+            backdrop-filter:blur(8px);
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            padding:20px;
+        }
+
+        .finance-modal {
+            width:min(560px,100%);
+            max-height:90vh;
+            overflow:auto;
+            background:var(--card-bg,#fff);
+            color:var(--text-color,#111827);
+            border-radius:24px;
+            box-shadow:0 30px 100px rgba(0,0,0,.25);
+            padding:25px;
+        }
+
+        .finance-modal-header {
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            gap:15px;
+            margin-bottom:20px;
+        }
+
+        .finance-modal-close {
+            width:38px;
+            height:38px;
+            border:0;
+            border-radius:12px;
+            cursor:pointer;
+            background:rgba(100,116,139,.10);
+            font-size:20px;
+        }
+
+        .finance-form-grid {
+            display:grid;
+            grid-template-columns:repeat(2,minmax(0,1fr));
+            gap:15px;
+        }
+
+        .finance-form-group {
+            display:flex;
+            flex-direction:column;
+            gap:7px;
+        }
+
+        .finance-form-group.full {
+            grid-column:1/-1;
+        }
+
+        .finance-form-group label {
+            font-size:13px;
+            font-weight:700;
+        }
+
+        .finance-form-group input,
+        .finance-form-group select,
+        .finance-form-group textarea {
+            width:100%;
+            padding:12px 14px;
+            border:1px solid rgba(148,163,184,.35);
+            border-radius:12px;
+            background:transparent;
+            color:inherit;
+            outline:none;
+        }
+
+        .finance-form-group textarea {
+            min-height:100px;
+            resize:vertical;
+        }
+
+        .finance-modal-footer {
+            display:flex;
+            justify-content:flex-end;
+            gap:10px;
+            margin-top:22px;
+        }
+
+        .finance-modal-footer button {
+            padding:11px 18px;
+            border:0;
+            border-radius:12px;
+            cursor:pointer;
+            font-weight:700;
+        }
+
+        .finance-btn-primary {
+            background:#2563eb;
+            color:#fff;
+        }
+
+        .finance-btn-secondary {
+            background:rgba(100,116,139,.12);
+            color:inherit;
+        }
+
+        @media(max-width:600px) {
+            .finance-form-grid {
+                grid-template-columns:1fr;
+            }
+
+            .finance-form-group.full {
+                grid-column:auto;
+            }
+
+            .finance-modal {
+                padding:20px;
+                border-radius:20px;
+            }
+        }
     `;
 
-    document.head.appendChild(style);
+    document.head.appendChild(
+        style
+    );
 }
 
 
-/* =========================================================
-   9. AUTENTICACIÓN
-   ========================================================= */
+/* ============================================================
+   8. AUTH
+   ============================================================ */
+
+function showLogin() {
+    currentUser = null;
+    currentProfile = null;
+
+    if (loginScreen) {
+        loginScreen.style.display =
+            "";
+
+        loginScreen.classList.remove(
+            "hidden"
+        );
+    }
+
+    if (appContainer) {
+        appContainer.style.display =
+            "none";
+
+        appContainer.classList.add(
+            "hidden"
+        );
+    }
+}
+
+
+function showApp() {
+    if (loginScreen) {
+        loginScreen.style.display =
+            "none";
+
+        loginScreen.classList.add(
+            "hidden"
+        );
+    }
+
+    if (appContainer) {
+        appContainer.style.display =
+            "";
+
+        appContainer.classList.remove(
+            "hidden"
+        );
+    }
+}
+
 
 async function checkSession() {
     if (!supabaseClient) {
-        showToast(
-            "Supabase no está configurado correctamente.",
-            "error"
-        );
+        showLogin();
 
         return;
     }
@@ -543,7 +758,7 @@ async function checkSession() {
 
         if (error) {
             console.error(
-                "❌ Error obteniendo sesión:",
+                "❌ Error sesión:",
                 error
             );
 
@@ -552,7 +767,9 @@ async function checkSession() {
             return;
         }
 
-        if (data?.session?.user) {
+        if (
+            data?.session?.user
+        ) {
             currentUser =
                 data.session.user;
 
@@ -576,38 +793,9 @@ async function checkSession() {
 }
 
 
-function showLogin() {
-    currentUser = null;
-    currentProfile = null;
-
-    if (loginScreen) {
-        loginScreen.style.display = "";
-        loginScreen.classList.remove(
-            "hidden"
-        );
-    }
-
-    if (appContainer) {
-        appContainer.style.display = "none";
-        appContainer.classList.add("hidden");
-    }
-}
-
-
-function showApp() {
-    if (loginScreen) {
-        loginScreen.style.display = "none";
-        loginScreen.classList.add("hidden");
-    }
-
-    if (appContainer) {
-        appContainer.style.display = "";
-        appContainer.classList.remove("hidden");
-    }
-}
-
-
-async function handleLogin(event) {
+async function handleLogin(
+    event
+) {
     event.preventDefault();
 
     if (!supabaseClient) {
@@ -620,7 +808,8 @@ async function handleLogin(event) {
     }
 
     const email =
-        loginEmail?.value?.trim();
+        loginEmail?.value
+            ?.trim();
 
     const password =
         loginPassword?.value;
@@ -634,18 +823,19 @@ async function handleLogin(event) {
         return;
     }
 
-    const submitButton =
+    const button =
         loginForm?.querySelector(
             'button[type="submit"]'
         );
 
-    const originalText =
-        submitButton?.innerHTML;
+    const originalHTML =
+        button?.innerHTML;
 
-    if (submitButton) {
-        submitButton.disabled = true;
+    if (button) {
+        button.disabled =
+            true;
 
-        submitButton.innerHTML =
+        button.innerHTML =
             "Iniciando sesión...";
     }
 
@@ -663,7 +853,7 @@ async function handleLogin(event) {
 
         if (error) {
             console.error(
-                "❌ Error de login:",
+                "❌ Login:",
                 error
             );
 
@@ -678,16 +868,7 @@ async function handleLogin(event) {
         }
 
         currentUser =
-            data?.user || null;
-
-        if (!currentUser) {
-            showToast(
-                "No se pudo obtener el usuario.",
-                "error"
-            );
-
-            return;
-        }
+            data.user;
 
         showToast(
             "Bienvenido a FinanzasPersonales.",
@@ -697,7 +878,7 @@ async function handleLogin(event) {
         await initializeAuthenticatedApp();
     } catch (error) {
         console.error(
-            "❌ Error inesperado en login:",
+            "❌ Login inesperado:",
             error
         );
 
@@ -706,18 +887,21 @@ async function handleLogin(event) {
             "error"
         );
     } finally {
-        if (submitButton) {
-            submitButton.disabled = false;
+        if (button) {
+            button.disabled =
+                false;
 
-            submitButton.innerHTML =
-                originalText ||
+            button.innerHTML =
+                originalHTML ||
                 "Iniciar sesión";
         }
     }
 }
 
 
-function getAuthErrorMessage(error) {
+function getAuthErrorMessage(
+    error
+) {
     const message =
         String(
             error?.message || ""
@@ -749,7 +933,7 @@ function getAuthErrorMessage(error) {
 
     return (
         error?.message ||
-        "No fue posible iniciar sesión."
+        "No se pudo iniciar sesión."
     );
 }
 
@@ -765,12 +949,12 @@ async function logout() {
 
         if (error) {
             console.error(
-                "❌ Error cerrando sesión:",
+                "❌ Logout:",
                 error
             );
 
             showToast(
-                "No se pudo cerrar la sesión.",
+                "No se pudo cerrar sesión.",
                 "error"
             );
 
@@ -788,33 +972,36 @@ async function logout() {
         );
     } catch (error) {
         console.error(
-            "❌ Error logout:",
+            "❌ Logout:",
             error
         );
     }
 }
 
 
-/* =========================================================
-   10. CAMBIO DE CONTRASEÑA VISUAL
-   ========================================================= */
+/* ============================================================
+   9. PASSWORD LOGIN
+   ============================================================ */
 
 function setupPasswordToggle() {
-    if (!passwordToggle || !loginPassword) {
+    if (
+        !passwordToggle ||
+        !loginPassword
+    ) {
         return;
     }
 
     passwordToggle.addEventListener(
         "click",
         () => {
-            const isPassword =
+            const visible =
                 loginPassword.type ===
-                "password";
+                "text";
 
             loginPassword.type =
-                isPassword
-                    ? "text"
-                    : "password";
+                visible
+                    ? "password"
+                    : "text";
 
             const icon =
                 passwordToggle.querySelector(
@@ -823,18 +1010,18 @@ function setupPasswordToggle() {
 
             if (icon) {
                 icon.className =
-                    isPassword
-                        ? "fa-solid fa-eye-slash"
-                        : "fa-solid fa-eye";
+                    visible
+                        ? "fa-solid fa-eye"
+                        : "fa-solid fa-eye-slash";
             }
         }
     );
 }
 
 
-/* =========================================================
-   11. PERFIL
-   ========================================================= */
+/* ============================================================
+   10. PERFIL
+   ============================================================ */
 
 async function loadCurrentProfile() {
     if (!currentUser?.id) {
@@ -857,23 +1044,15 @@ async function loadCurrentProfile() {
 
         if (error) {
             console.error(
-                "❌ Error cargando perfil:",
+                "❌ Perfil:",
                 error
             );
 
             return null;
         }
 
-        if (!data) {
-            console.warn(
-                "⚠️ No existe perfil para:",
-                currentUser.email
-            );
-
-            return null;
-        }
-
-        currentProfile = data;
+        currentProfile =
+            data;
 
         console.log(
             "✅ Perfil cargado:",
@@ -883,7 +1062,7 @@ async function loadCurrentProfile() {
         return data;
     } catch (error) {
         console.error(
-            "❌ Error perfil:",
+            "❌ Perfil inesperado:",
             error
         );
 
@@ -895,7 +1074,8 @@ async function loadCurrentProfile() {
 function isAdmin() {
     const role =
         String(
-            currentProfile?.rol || ""
+            currentProfile?.rol ||
+                ""
         )
             .trim()
             .toLowerCase();
@@ -909,9 +1089,9 @@ function isAdmin() {
 
 
 function isActiveProfile() {
-    const estado =
+    const status =
         String(
-            currentProfile?.estado ??
+            currentProfile?.estado ||
                 "activo"
         )
             .trim()
@@ -919,102 +1099,155 @@ function isActiveProfile() {
 
     return ![
         "inactivo",
-        "disabled",
+        "bloqueado",
         "suspendido",
-        "bloqueado"
-    ].includes(estado);
+        "disabled"
+    ].includes(status);
 }
 
 
-/* =========================================================
-   12. INICIALIZACIÓN APP
-   ========================================================= */
+/* ============================================================
+   11. APP AUTHENTICATED
+   ============================================================ */
 
 async function initializeAuthenticatedApp() {
-    if (!currentUser) return;
-
-    const profile =
-        await loadCurrentProfile();
-
-    if (!profile) {
-        showToast(
-            "No encontramos tu perfil en el sistema.",
-            "error"
-        );
-
-        await supabaseClient.auth.signOut();
-
-        showLogin();
-
+    if (
+        isInitializing ||
+        !currentUser
+    ) {
         return;
     }
 
-    if (!isActiveProfile()) {
-        showToast(
-            "Tu cuenta está desactivada. Contacta al administrador.",
-            "error"
+    isInitializing = true;
+
+    try {
+        const profile =
+            await loadCurrentProfile();
+
+        if (!profile) {
+            showToast(
+                "No existe un perfil asociado a tu cuenta.",
+                "error"
+            );
+
+            await supabaseClient.auth.signOut();
+
+            showLogin();
+
+            return;
+        }
+
+        if (
+            !isActiveProfile()
+        ) {
+            showToast(
+                "Tu cuenta está desactivada.",
+                "error"
+            );
+
+            await supabaseClient.auth.signOut();
+
+            showLogin();
+
+            return;
+        }
+
+        showApp();
+
+        updateUserInterface();
+
+        setupAdminVisibility();
+
+        await loadDashboard();
+
+        if (isAdmin()) {
+            await loadUsers();
+        }
+
+        console.log(
+            "🚀 FinanzasPersonales PRO MAX iniciado"
         );
-
-        await supabaseClient.auth.signOut();
-
-        showLogin();
-
-        return;
+    } finally {
+        isInitializing =
+            false;
     }
+}
 
-    showApp();
 
-    updateUserInterface();
+/* ============================================================
+   12. UI PERFIL
+   ============================================================ */
 
-    setupAdminVisibility();
+function getUserFullName() {
+    const nombre =
+        currentProfile?.nombre ||
+        currentProfile?.usuario ||
+        currentUser?.email?.split(
+            "@"
+        )[0] ||
+        "Usuario";
 
-    await loadDashboard();
+    const apellido =
+        currentProfile?.apellido ||
+        "";
 
-    if (isAdmin()) {
-        await loadUsers();
-    }
+    return `${nombre} ${apellido}`.trim();
+}
 
-    console.log(
-        "🚀 FinanzasPersonales - JavaScript cargado correctamente"
+
+function getUserFirstName() {
+    return (
+        currentProfile?.nombre ||
+        currentProfile?.usuario ||
+        "Usuario"
     );
 }
 
 
-/* =========================================================
-   13. INTERFAZ DEL USUARIO
-   ========================================================= */
-
-function updateUserInterface() {
-    if (!currentProfile) return;
-
+function getInitials() {
     const nombre =
-        currentProfile.nombre ||
-        currentProfile.usuario ||
-        currentUser?.email?.split("@")[0] ||
-        "Usuario";
+        currentProfile?.nombre ||
+        "";
 
     const apellido =
-        currentProfile.apellido || "";
+        currentProfile?.apellido ||
+        "";
 
+    const initials =
+        `${nombre.charAt(
+            0
+        )}${apellido.charAt(
+            0
+        )}`.toUpperCase();
+
+    return (
+        initials ||
+        currentUser?.email
+            ?.charAt(0)
+            .toUpperCase() ||
+        "U"
+    );
+}
+
+
+function updateUserInterface() {
     const fullName =
-        `${nombre} ${apellido}`.trim();
+        getUserFullName();
+
+    const firstName =
+        getUserFirstName();
 
     const role =
-        currentProfile.rol ||
+        currentProfile?.rol ||
         "Usuario";
 
     const email =
-        currentProfile.email ||
+        currentProfile?.email ||
         currentUser?.email ||
         "";
 
     const initials =
-        getInitials(
-            nombre,
-            apellido
-        );
-
-    /* Data attributes */
+        getInitials();
 
     document
         .querySelectorAll(
@@ -1063,7 +1296,7 @@ function updateUserInterface() {
         .forEach(
             element =>
                 (element.textContent =
-                    nombre)
+                    firstName)
         );
 
     document
@@ -1076,8 +1309,6 @@ function updateUserInterface() {
                     role)
         );
 
-    /* IDs reales del HTML */
-
     setText(
         fullName,
         "#profileName"
@@ -1089,7 +1320,7 @@ function updateUserInterface() {
     );
 
     setText(
-        nombre,
+        firstName,
         "#welcomeName"
     );
 
@@ -1108,75 +1339,124 @@ function updateUserInterface() {
         email,
         "#profileEmail"
     );
-
-    /* Avatar */
-
-    const avatarUrl =
-        currentProfile.avatar_url;
-
-    document
-        .querySelectorAll(
-            "[data-user-avatar], #profileAvatar, #topbarAvatar"
-        )
-        .forEach(element => {
-            if (
-                element.tagName ===
-                "IMG"
-            ) {
-                if (avatarUrl) {
-                    element.src =
-                        avatarUrl;
-                } else {
-                    element.style.display =
-                        "none";
-                }
-            }
-        });
 }
 
 
-/* =========================================================
-   14. ADMIN
-   ========================================================= */
+/* ============================================================
+   13. ADMIN VISIBILITY
+   ============================================================ */
 
 function setupAdminVisibility() {
-    const adminElements =
-        document.querySelectorAll(
-            "[data-admin-only], #adminMenu"
-        );
-
-    adminElements.forEach(
-        element => {
+    document
+        .querySelectorAll(
+            "[data-admin-only]"
+        )
+        .forEach(element => {
             element.style.display =
                 isAdmin()
                     ? ""
                     : "none";
-        }
-    );
+        });
+
+    const adminMenu =
+        document.getElementById(
+            "adminMenu"
+        );
+
+    if (adminMenu) {
+        adminMenu.style.display =
+            isAdmin()
+                ? ""
+                : "none";
+    }
 }
 
 
-/* =========================================================
+/* ============================================================
+   14. ELIMINAR REPORTES
+   ============================================================ */
+
+function removeReportsFromUI() {
+    const reportSections = [
+        "reportes",
+        "reports",
+        "reportesSection",
+        "reportsSection"
+    ];
+
+    reportSections.forEach(
+        id => {
+            const element =
+                document.getElementById(
+                    id
+                );
+
+            if (element) {
+                element.remove();
+            }
+        }
+    );
+
+    document
+        .querySelectorAll(
+            '[data-section="reportes"], [data-section="reports"]'
+        )
+        .forEach(element =>
+            element.remove()
+        );
+}
+
+
+/* ============================================================
    15. NAVEGACIÓN
-   ========================================================= */
+   ============================================================ */
 
 function setupNavigation() {
     document
-        .querySelectorAll("[data-section]")
+        .querySelectorAll(
+            "[data-section]"
+        )
         .forEach(item => {
+            if (
+                item.dataset
+                    .navigationBound
+            ) {
+                return;
+            }
+
+            item.dataset.navigationBound =
+                "true";
+
             item.addEventListener(
                 "click",
                 event => {
                     event.preventDefault();
 
                     const section =
-                        item.dataset.section;
+                        item.dataset
+                            .section;
 
-                    if (section) {
-                        showSection(
-                            section
+                    if (
+                        section ===
+                            "reportes" ||
+                        section ===
+                            "reports"
+                    ) {
+                        showToast(
+                            "Los reportes ahora están integrados en el Dashboard.",
+                            "info"
                         );
+
+                        showSection(
+                            "dashboard"
+                        );
+
+                        return;
                     }
+
+                    showSection(
+                        section
+                    );
 
                     closeSidebar();
                 }
@@ -1185,29 +1465,55 @@ function setupNavigation() {
 }
 
 
-async function showSection(section) {
-    if (!section) return;
+async function showSection(
+    section
+) {
+    if (
+        !section ||
+        section ===
+            "reportes" ||
+        section ===
+            "reports"
+    ) {
+        section =
+            "dashboard";
+    }
 
-    currentSection = section;
+    currentSection =
+        section;
 
     document
-        .querySelectorAll(".page-section")
+        .querySelectorAll(
+            ".page-section"
+        )
         .forEach(page => {
             const pageId =
                 page.id;
 
-            const matches =
-                pageId === section ||
+            const normalized =
+                pageId
+                    .replace(
+                        "Section",
+                        ""
+                    )
+                    .toLowerCase();
+
+            const target =
+                section.toLowerCase();
+
+            const active =
+                normalized ===
+                    target ||
                 pageId ===
-                    `${section}Section`;
+                    section;
 
             page.classList.toggle(
                 "active",
-                matches
+                active
             );
 
             page.style.display =
-                matches
+                active
                     ? ""
                     : "none";
         });
@@ -1219,7 +1525,8 @@ async function showSection(section) {
         .forEach(item => {
             item.classList.toggle(
                 "active",
-                item.dataset.section ===
+                item.dataset
+                    .section ===
                     section
             );
         });
@@ -1228,28 +1535,29 @@ async function showSection(section) {
         section
     );
 
-    if (section === "dashboard") {
+    if (
+        section ===
+        "dashboard"
+    ) {
         await loadDashboard();
     }
 
     if (
-        section === "reportes" ||
-        section === "reports"
-    ) {
-        await loadReports();
-    }
-
-    if (
-        section === "metas" ||
-        section === "goals"
+        section ===
+            "metas" ||
+        section ===
+            "goals"
     ) {
         await loadGoalsPage();
     }
 
     if (
-        section === "usuarios" ||
-        section === "users" ||
-        section === "admin"
+        section ===
+            "usuarios" ||
+        section ===
+            "users" ||
+        section ===
+            "admin"
     ) {
         if (isAdmin()) {
             await loadUsers();
@@ -1258,82 +1566,92 @@ async function showSection(section) {
 }
 
 
-function updatePageHeader(section) {
+function updatePageHeader(
+    section
+) {
     const pages = {
         dashboard: {
-            eyebrow: "Resumen financiero",
-            title: "Dashboard"
+            eyebrow:
+                "Resumen financiero",
+            title:
+                "Dashboard"
         },
 
         ingresos: {
-            eyebrow: "Movimientos",
-            title: "Ingresos"
+            eyebrow:
+                "Gestión financiera",
+            title:
+                "Ingresos"
         },
 
         salidas: {
-            eyebrow: "Movimientos",
-            title: "Salidas"
+            eyebrow:
+                "Gestión financiera",
+            title:
+                "Salidas"
         },
 
         aportes: {
-            eyebrow: "Movimientos",
-            title: "Aportes"
+            eyebrow:
+                "Gestión financiera",
+            title:
+                "Aportes"
         },
 
         metas: {
-            eyebrow: "Planificación",
-            title: "Metas"
-        },
-
-        reportes: {
-            eyebrow: "Análisis",
-            title: "Reportes"
-        },
-
-        reports: {
-            eyebrow: "Análisis",
-            title: "Reportes"
+            eyebrow:
+                "Planificación",
+            title:
+                "Metas"
         },
 
         usuarios: {
-            eyebrow: "Administración",
-            title: "Usuarios"
+            eyebrow:
+                "Administración",
+            title:
+                "Usuarios"
         },
 
         users: {
-            eyebrow: "Administración",
-            title: "Usuarios"
+            eyebrow:
+                "Administración",
+            title:
+                "Usuarios"
         },
 
         admin: {
-            eyebrow: "Administración",
-            title: "Usuarios"
+            eyebrow:
+                "Administración",
+            title:
+                "Usuarios"
         }
     };
 
-    const page =
+    const data =
         pages[section] ||
         pages.dashboard;
 
     setText(
-        page.title,
+        data.title,
         "[data-page-title]",
         "#pageTitle"
     );
 
     setText(
-        page.eyebrow,
+        data.eyebrow,
         "#pageEyebrow"
     );
 }
 
 
-/* =========================================================
+/* ============================================================
    16. SIDEBAR
-   ========================================================= */
+   ============================================================ */
 
 function openSidebar() {
-    sidebar?.classList.add("open");
+    sidebar?.classList.add(
+        "open"
+    );
 
     sidebarOverlay?.classList.add(
         "active"
@@ -1378,9 +1696,9 @@ function setupSidebar() {
 }
 
 
-/* =========================================================
+/* ============================================================
    17. TEMA
-   ========================================================= */
+   ============================================================ */
 
 function setupTheme() {
     const button =
@@ -1391,12 +1709,12 @@ function setupTheme() {
 
     if (!button) return;
 
-    const savedTheme =
+    const saved =
         localStorage.getItem(
             "finanzas-theme"
         );
 
-    if (savedTheme === "dark") {
+    if (saved === "dark") {
         document.documentElement.classList.add(
             "dark"
         );
@@ -1411,19 +1729,19 @@ function setupTheme() {
     button.addEventListener(
         "click",
         () => {
-            const isDark =
+            const dark =
                 document.documentElement.classList.toggle(
                     "dark"
                 );
 
             document.body.classList.toggle(
                 "dark",
-                isDark
+                dark
             );
 
             localStorage.setItem(
                 "finanzas-theme",
-                isDark
+                dark
                     ? "dark"
                     : "light"
             );
@@ -1435,7 +1753,7 @@ function setupTheme() {
 
 
 function updateThemeIcon() {
-    const isDark =
+    const dark =
         document.documentElement.classList.contains(
             "dark"
         );
@@ -1446,25 +1764,21 @@ function updateThemeIcon() {
         )
         .forEach(icon => {
             icon.className =
-                isDark
+                dark
                     ? "fa-solid fa-sun"
                     : "fa-solid fa-moon";
         });
 }
 
 
-/* =========================================================
-   18. CONSULTAS DE MOVIMIENTOS
-   ========================================================= */
+/* ============================================================
+   18. DATOS FINANCIEROS
+   ============================================================ */
 
 async function getTransactions(
-    tableName
+    table
 ) {
     if (!currentUser?.id) {
-        console.warn(
-            `⚠️ No hay usuario autenticado para cargar ${tableName}`
-        );
-
         return [];
     }
 
@@ -1474,7 +1788,7 @@ async function getTransactions(
             error
         } =
             await supabaseClient
-                .from(tableName)
+                .from(table)
                 .select("*")
                 .eq(
                     "user_id",
@@ -1489,7 +1803,7 @@ async function getTransactions(
 
         if (error) {
             console.error(
-                `❌ Error cargando ${tableName}:`,
+                `❌ ${table}:`,
                 error
             );
 
@@ -1499,7 +1813,7 @@ async function getTransactions(
         return data || [];
     } catch (error) {
         console.error(
-            `❌ Error inesperado cargando ${tableName}:`,
+            `❌ ${table}:`,
             error
         );
 
@@ -1534,7 +1848,7 @@ async function getGoals() {
 
         if (error) {
             console.error(
-                "❌ Error cargando metas:",
+                "❌ metas:",
                 error
             );
 
@@ -1544,7 +1858,7 @@ async function getGoals() {
         return data || [];
     } catch (error) {
         console.error(
-            "❌ Error metas:",
+            "❌ metas:",
             error
         );
 
@@ -1553,12 +1867,14 @@ async function getGoals() {
 }
 
 
-/* =========================================================
+/* ============================================================
    19. DASHBOARD
-   ========================================================= */
+   ============================================================ */
 
 async function loadDashboard() {
-    if (!currentUser) return;
+    if (!currentUser) {
+        return;
+    }
 
     try {
         const [
@@ -1566,14 +1882,24 @@ async function loadDashboard() {
             salidas,
             aportes,
             metas
-        ] = await Promise.all([
-            getTransactions("ingresos"),
-            getTransactions("salidas"),
-            getTransactions("aportes"),
-            getGoals()
-        ]);
+        ] =
+            await Promise.all([
+                getTransactions(
+                    "ingresos"
+                ),
 
-        dashboardCache = {
+                getTransactions(
+                    "salidas"
+                ),
+
+                getTransactions(
+                    "aportes"
+                ),
+
+                getGoals()
+            ]);
+
+        financeData = {
             ingresos,
             salidas,
             aportes,
@@ -1582,20 +1908,22 @@ async function loadDashboard() {
 
         updateDashboardNumbers();
 
-        renderGoalsPreview();
-
         renderRecentActivity();
+
+        renderGoalsPreview();
 
         renderFlowChart();
 
         renderExpenseChart();
+
+        renderTransactionLists();
 
         console.log(
             "📊 Dashboard actualizado"
         );
     } catch (error) {
         console.error(
-            "❌ Error dashboard:",
+            "❌ Dashboard:",
             error
         );
 
@@ -1607,132 +1935,151 @@ async function loadDashboard() {
 }
 
 
-/* =========================================================
-   20. NÚMEROS DASHBOARD
-   ========================================================= */
+/* ============================================================
+   20. CÁLCULOS
+   ============================================================ */
 
-function calculateTotal(
-    rows
-) {
+function total(rows) {
     return rows.reduce(
-        (total, item) =>
-            total +
+        (
+            sum,
+            row
+        ) =>
+            sum +
             Number(
-                item.monto ??
-                    item.amount ??
-                    0
+                row.monto || 0
             ),
         0
     );
 }
 
 
-function updateDashboardNumbers() {
-    const income =
-        calculateTotal(
-            dashboardCache.ingresos
+function getFinancialTotals() {
+    const ingresos =
+        total(
+            financeData.ingresos
         );
 
-    const expenses =
-        calculateTotal(
-            dashboardCache.salidas
+    const salidas =
+        total(
+            financeData.salidas
         );
 
-    const contributions =
-        calculateTotal(
-            dashboardCache.aportes
+    const aportes =
+        total(
+            financeData.aportes
         );
 
     const balance =
-        income -
-        expenses -
-        contributions;
+        ingresos -
+        salidas -
+        aportes;
+
+    return {
+        ingresos,
+        salidas,
+        aportes,
+        balance
+    };
+}
+
+
+/* ============================================================
+   21. DASHBOARD NUMBERS
+   ============================================================ */
+
+function updateDashboardNumbers() {
+    const {
+        ingresos,
+        salidas,
+        aportes,
+        balance
+    } =
+        getFinancialTotals();
 
     setText(
-        formatMoney(income),
+        formatMoney(
+            ingresos
+        ),
         "[data-total-income]",
         "#incomeValue"
     );
 
     setText(
-        formatMoney(expenses),
+        formatMoney(
+            salidas
+        ),
         "[data-total-expenses]",
         "#expenseValue"
     );
 
     setText(
-        formatMoney(contributions),
+        formatMoney(
+            aportes
+        ),
         "[data-total-contributions]",
         "#contributionValue"
     );
 
     setText(
-        formatMoney(balance),
+        formatMoney(
+            balance
+        ),
         "[data-balance]",
         "#balanceValue"
     );
 
-    /* Porcentajes */
+    /* Variación */
 
-    const totalMovement =
-        income +
-        expenses +
-        contributions;
+    const movement =
+        ingresos +
+        salidas +
+        aportes;
 
-    const expensePercentage =
-        totalMovement
-            ? (expenses /
-                  totalMovement) *
-              100
-            : 0;
+    if (movement > 0) {
+        setText(
+            `${(
+                (ingresos /
+                    movement) *
+                100
+            ).toFixed(1)}%`,
+            "#incomePercentage",
+            "[data-income-percentage]"
+        );
 
-    const incomePercentage =
-        totalMovement
-            ? (income /
-                  totalMovement) *
-              100
-            : 0;
-
-    setText(
-        `${expensePercentage.toFixed(1)}%`,
-        "#expensePercentage",
-        "[data-expense-percentage]"
-    );
-
-    setText(
-        `${incomePercentage.toFixed(1)}%`,
-        "#incomePercentage",
-        "[data-income-percentage]"
-    );
+        setText(
+            `${(
+                (salidas /
+                    movement) *
+                100
+            ).toFixed(1)}%`,
+            "#expensePercentage",
+            "[data-expense-percentage]"
+        );
+    }
 }
 
 
-/* =========================================================
-   21. ACTIVIDAD RECIENTE
-   ========================================================= */
+/* ============================================================
+   22. ACTIVIDAD
+   ============================================================ */
 
-function getTransactionConcept(
-    item
-) {
+function getConcept(item) {
     return (
         item.concepto ||
         item.nombre ||
         item.titulo ||
-        item.descripcion ||
         item.categoria ||
+        item.descripcion ||
         "Movimiento"
     );
 }
 
 
-function getTransactionDate(
-    item
-) {
+function getDate(item) {
     return (
         item.fecha ||
-        item.fecha_cita ||
-        item.created_at ||
-        null
+        item.created_at
     );
 }
 
@@ -1745,60 +2092,73 @@ function renderRecentActivity() {
             "#recent-activity"
         );
 
-    if (!container) return;
+    if (!container) {
+        return;
+    }
 
-    const income =
-        dashboardCache.ingresos.map(
+    const data = [
+        ...financeData.ingresos.map(
             item => ({
                 ...item,
-                _type: "income"
+                type:
+                    "income"
             })
-        );
+        ),
 
-    const expenses =
-        dashboardCache.salidas.map(
+        ...financeData.salidas.map(
             item => ({
                 ...item,
-                _type: "expense"
+                type:
+                    "expense"
             })
-        );
+        ),
 
-    const contributions =
-        dashboardCache.aportes.map(
+        ...financeData.aportes.map(
             item => ({
                 ...item,
-                _type: "contribution"
+                type:
+                    "contribution"
             })
-        );
-
-    const activities = [
-        ...income,
-        ...expenses,
-        ...contributions
+        )
     ]
         .sort(
-            (a, b) =>
+            (
+                a,
+                b
+            ) =>
                 new Date(
-                    getTransactionDate(
+                    getDate(
                         b
                     )
                 ) -
                 new Date(
-                    getTransactionDate(
+                    getDate(
                         a
                     )
                 )
         )
-        .slice(0, 8);
+        .slice(
+            0,
+            10
+        );
 
-    if (!activities.length) {
+    if (!data.length) {
         container.innerHTML = `
             <div class="finanzas-empty">
-                <div style="font-size:32px;margin-bottom:10px;">
+                <div style="
+                    font-size:38px;
+                    margin-bottom:10px;
+                ">
                     📊
                 </div>
-                <strong>Aún no hay movimientos</strong>
-                <p>Cuando registres movimientos aparecerán aquí.</p>
+
+                <strong>
+                    Sin movimientos todavía
+                </strong>
+
+                <p>
+                    Tus movimientos aparecerán aquí.
+                </p>
             </div>
         `;
 
@@ -1806,80 +2166,85 @@ function renderRecentActivity() {
     }
 
     container.innerHTML =
-        activities
+        data
             .map(item => {
                 const amount =
                     Number(
-                        item.monto || 0
+                        item.monto ||
+                            0
                     );
 
-                const type =
-                    item._type;
+                const income =
+                    item.type ===
+                    "income";
 
-                const isIncome =
-                    type === "income";
-
-                const isContribution =
-                    type ===
+                const contribution =
+                    item.type ===
                     "contribution";
 
-                const amountClass =
-                    isIncome
-                        ? "amount-positive"
-                        : isContribution
-                        ? "amount-contribution"
-                        : "amount-negative";
+                const css =
+                    income
+                        ? "finance-positive"
+                        : contribution
+                        ? "finance-contribution"
+                        : "finance-negative";
 
-                const prefix =
-                    isIncome
+                const sign =
+                    income
                         ? "+"
                         : "-";
 
+                const icon =
+                    income
+                        ? "fa-arrow-trend-up"
+                        : contribution
+                        ? "fa-piggy-bank"
+                        : "fa-arrow-trend-down";
+
                 const label =
-                    isIncome
+                    income
                         ? "Ingreso"
-                        : isContribution
+                        : contribution
                         ? "Aporte"
                         : "Salida";
 
-                const icon =
-                    isIncome
-                        ? "fa-arrow-down"
-                        : isContribution
-                        ? "fa-piggy-bank"
-                        : "fa-arrow-up";
-
                 return `
                     <div class="activity-item">
+
                         <div class="activity-icon">
-                            <i class="fa-solid ${icon}"></i>
+                            <i class="
+                                fa-solid
+                                ${icon}
+                            "></i>
                         </div>
 
                         <div class="activity-content">
                             <strong>
                                 ${escapeHTML(
-                                    getTransactionConcept(
+                                    getConcept(
                                         item
                                     )
                                 )}
                             </strong>
 
                             <small>
-                                ${label} ·
+                                ${label}
+                                ·
                                 ${formatDate(
-                                    getTransactionDate(
+                                    getDate(
                                         item
                                     )
                                 )}
                             </small>
                         </div>
 
-                        <div class="${amountClass}">
-                            ${prefix}
+                        <div class="${css}">
+                            ${sign}
                             ${formatMoney(
                                 amount
                             )}
                         </div>
+
                     </div>
                 `;
             })
@@ -1887,31 +2252,36 @@ function renderRecentActivity() {
 }
 
 
-/* =========================================================
-   22. METAS - PREVIEW
-   ========================================================= */
+/* ============================================================
+   23. METAS PREVIEW
+   ============================================================ */
 
-function getGoalName(goal) {
+function getGoalName(
+    goal
+) {
     return (
         goal.nombre ||
         goal.titulo ||
         goal.meta ||
-        "Meta financiera"
+        "Meta"
     );
 }
 
 
-function getGoalTarget(goal) {
+function getGoalTarget(
+    goal
+) {
     return Number(
         goal.monto_objetivo ??
             goal.objetivo ??
-            goal.meta ??
             0
     );
 }
 
 
-function getGoalCurrent(goal) {
+function getGoalCurrent(
+    goal
+) {
     return Number(
         goal.monto_actual ??
             goal.actual ??
@@ -1921,20 +2291,29 @@ function getGoalCurrent(goal) {
 }
 
 
-function getGoalPercentage(goal) {
+function getGoalProgress(
+    goal
+) {
     const target =
-        getGoalTarget(goal);
+        getGoalTarget(
+            goal
+        );
 
     const current =
-        getGoalCurrent(goal);
+        getGoalCurrent(
+            goal
+        );
 
-    if (!target) return 0;
+    if (!target) {
+        return 0;
+    }
 
     return Math.min(
         100,
         Math.max(
             0,
-            (current / target) *
+            (current /
+                target) *
                 100
         )
     );
@@ -1949,10 +2328,12 @@ function renderGoalsPreview() {
             "#goals-preview"
         );
 
-    if (!container) return;
+    if (!container) {
+        return;
+    }
 
     const goals =
-        dashboardCache.metas.slice(
+        financeData.metas.slice(
             0,
             3
         );
@@ -1960,14 +2341,18 @@ function renderGoalsPreview() {
     if (!goals.length) {
         container.innerHTML = `
             <div class="finanzas-empty">
-                <div style="font-size:32px;margin-bottom:10px;">
+                <div style="
+                    font-size:38px;
+                ">
                     🎯
                 </div>
 
-                <strong>No tienes metas todavía</strong>
+                <strong>
+                    No tienes metas
+                </strong>
 
                 <p>
-                    Crea una meta para comenzar a planificar.
+                    Crea una meta financiera para comenzar.
                 </p>
             </div>
         `;
@@ -1977,72 +2362,73 @@ function renderGoalsPreview() {
 
     container.innerHTML =
         goals
-            .map(renderGoalCard)
+            .map(goal => {
+                const progress =
+                    getGoalProgress(
+                        goal
+                    );
+
+                return `
+                    <div class="goal-card">
+
+                        <div class="goal-header">
+
+                            <strong>
+                                ${escapeHTML(
+                                    getGoalName(
+                                        goal
+                                    )
+                                )}
+                            </strong>
+
+                            <span>
+                                ${progress.toFixed(
+                                    0
+                                )}%
+                            </span>
+
+                        </div>
+
+                        <div class="goal-progress">
+                            <div
+                                class="goal-progress-bar"
+                                style="
+                                    width:${progress}%;
+                                "
+                            ></div>
+                        </div>
+
+                        <div class="goal-footer">
+
+                            <span>
+                                ${formatMoney(
+                                    getGoalCurrent(
+                                        goal
+                                    )
+                                )}
+                            </span>
+
+                            <span>
+                                de
+                                ${formatMoney(
+                                    getGoalTarget(
+                                        goal
+                                    )
+                                )}
+                            </span>
+
+                        </div>
+
+                    </div>
+                `;
+            })
             .join("");
 }
 
 
-function renderGoalCard(goal) {
-    const target =
-        getGoalTarget(goal);
-
-    const current =
-        getGoalCurrent(goal);
-
-    const percentage =
-        getGoalPercentage(goal);
-
-    return `
-        <div class="goal-card">
-
-            <div class="goal-header">
-                <strong>
-                    ${escapeHTML(
-                        getGoalName(
-                            goal
-                        )
-                    )}
-                </strong>
-
-                <span>
-                    ${percentage.toFixed(
-                        0
-                    )}%
-                </span>
-            </div>
-
-            <div class="goal-progress">
-                <div
-                    class="goal-progress-bar"
-                    style="
-                        width:${percentage}%;
-                    "
-                ></div>
-            </div>
-
-            <div class="goal-footer">
-                <span>
-                    ${formatMoney(
-                        current
-                    )}
-                </span>
-
-                <span>
-                    de
-                    ${formatMoney(
-                        target
-                    )}
-                </span>
-            </div>
-
-        </div>
-    `;
-}
-
-
-/* =========================================================
-   23. METAS - PÁGINA
-   ========================================================= */
+/* ============================================================
+   24. METAS PÁGINA
+   ============================================================ */
 
 async function loadGoalsPage() {
     const container =
@@ -2052,22 +2438,31 @@ async function loadGoalsPage() {
             "#goals-list"
         );
 
-    if (!container) return;
+    if (!container) {
+        return;
+    }
 
     const goals =
         await getGoals();
 
+    financeData.metas =
+        goals;
+
     if (!goals.length) {
         container.innerHTML = `
             <div class="finanzas-empty">
-                <div style="font-size:42px;">
+                <div style="
+                    font-size:42px;
+                ">
                     🎯
                 </div>
 
-                <h3>No tienes metas creadas</h3>
+                <h3>
+                    No tienes metas creadas
+                </h3>
 
                 <p>
-                    Tus objetivos financieros aparecerán aquí.
+                    Crea objetivos para organizar tus finanzas.
                 </p>
             </div>
         `;
@@ -2088,8 +2483,8 @@ async function loadGoalsPage() {
                         goal
                     );
 
-                const percentage =
-                    getGoalPercentage(
+                const progress =
+                    getGoalProgress(
                         goal
                     );
 
@@ -2104,6 +2499,7 @@ async function loadGoalsPage() {
                     <div class="goal-card">
 
                         <div class="goal-header">
+
                             <div>
                                 <h3>
                                     ${escapeHTML(
@@ -2122,17 +2518,18 @@ async function loadGoalsPage() {
                             </div>
 
                             <strong>
-                                ${percentage.toFixed(
+                                ${progress.toFixed(
                                     0
                                 )}%
                             </strong>
+
                         </div>
 
                         <div class="goal-progress">
                             <div
                                 class="goal-progress-bar"
                                 style="
-                                    width:${percentage}%;
+                                    width:${progress}%;
                                 "
                             ></div>
                         </div>
@@ -2149,7 +2546,7 @@ async function loadGoalsPage() {
                             </span>
 
                             <span>
-                                Faltan:
+                                Falta:
                                 <strong>
                                     ${formatMoney(
                                         remaining
@@ -2175,9 +2572,9 @@ async function loadGoalsPage() {
 }
 
 
-/* =========================================================
-   24. GRÁFICO FLUJO
-   ========================================================= */
+/* ============================================================
+   25. GRÁFICO PRINCIPAL
+   ============================================================ */
 
 function renderFlowChart() {
     const canvas =
@@ -2185,43 +2582,31 @@ function renderFlowChart() {
             "flowChart"
         );
 
-    if (!canvas) return;
-
     if (
+        !canvas ||
         typeof Chart ===
-        "undefined"
+            "undefined"
     ) {
-        console.warn(
-            "⚠️ Chart.js no está cargado."
-        );
-
         return;
     }
 
-    const income =
-        calculateTotal(
-            dashboardCache.ingresos
-        );
+    const {
+        ingresos,
+        salidas,
+        aportes
+    } =
+        getFinancialTotals();
 
-    const expenses =
-        calculateTotal(
-            dashboardCache.salidas
-        );
+    charts.flow?.destroy();
 
-    const contributions =
-        calculateTotal(
-            dashboardCache.aportes
-        );
-
-    if (flowChartInstance) {
-        flowChartInstance.destroy();
-    }
-
-    flowChartInstance =
+    charts.flow =
         new Chart(
-            canvas.getContext("2d"),
+            canvas.getContext(
+                "2d"
+            ),
             {
-                type: "doughnut",
+                type:
+                    "doughnut",
 
                 data: {
                     labels: [
@@ -2233,36 +2618,41 @@ function renderFlowChart() {
                     datasets: [
                         {
                             data: [
-                                income,
-                                expenses,
-                                contributions
+                                ingresos,
+                                salidas,
+                                aportes
                             ]
                         }
                     ]
                 },
 
                 options: {
-                    responsive: true,
+                    responsive:
+                        true,
 
-                    maintainAspectRatio: false,
+                    maintainAspectRatio:
+                        false,
+
+                    cutout:
+                        "68%",
 
                     plugins: {
                         legend: {
-                            position: "bottom"
+                            position:
+                                "bottom"
                         },
 
                         tooltip: {
                             callbacks: {
                                 label:
-                                    context => {
-                                        return `${
+                                    context =>
+                                        `${
                                             context.label
                                         }: ${
                                             formatMoney(
                                                 context.raw
                                             )
-                                        }`;
-                                    }
+                                        }`
                             }
                         }
                     }
@@ -2272,9 +2662,9 @@ function renderFlowChart() {
 }
 
 
-/* =========================================================
-   25. GRÁFICO GASTOS
-   ========================================================= */
+/* ============================================================
+   26. GRÁFICO DE GASTOS
+   ============================================================ */
 
 function renderExpenseChart() {
     const canvas =
@@ -2282,68 +2672,81 @@ function renderExpenseChart() {
             "expenseChart"
         );
 
-    if (!canvas) return;
-
     if (
+        !canvas ||
         typeof Chart ===
-        "undefined"
+            "undefined"
     ) {
         return;
     }
 
-    const groups = {};
+    const categories =
+        {};
 
-    dashboardCache.salidas.forEach(
+    financeData.salidas.forEach(
         item => {
             const category =
                 item.categoria ||
                 item.tipo ||
                 "Otros";
 
-            groups[category] =
-                (groups[category] || 0) +
+            categories[
+                category
+            ] =
+                (categories[
+                    category
+                ] || 0) +
                 Number(
-                    item.monto || 0
+                    item.monto ||
+                        0
                 );
         }
     );
 
-    const labels =
-        Object.keys(groups);
+    charts.expenses?.destroy();
 
-    const values =
-        Object.values(groups);
-
-    if (expenseChartInstance) {
-        expenseChartInstance.destroy();
-    }
-
-    expenseChartInstance =
+    charts.expenses =
         new Chart(
-            canvas.getContext("2d"),
+            canvas.getContext(
+                "2d"
+            ),
             {
-                type: "bar",
+                type:
+                    "bar",
 
                 data: {
-                    labels,
+                    labels:
+                        Object.keys(
+                            categories
+                        ),
 
                     datasets: [
                         {
-                            label: "Gastos",
-                            data: values,
-                            borderWidth: 1
+                            label:
+                                "Gastos",
+
+                            data:
+                                Object.values(
+                                    categories
+                                ),
+
+                            borderWidth:
+                                1
                         }
                     ]
                 },
 
                 options: {
-                    responsive: true,
+                    responsive:
+                        true,
 
-                    maintainAspectRatio: false,
+                    maintainAspectRatio:
+                        false,
 
                     scales: {
                         y: {
-                            beginAtZero: true,
+                            beginAtZero:
+                                true,
 
                             ticks: {
                                 callback:
@@ -2353,18 +2756,6 @@ function renderExpenseChart() {
                                         )
                             }
                         }
-                    },
-
-                    plugins: {
-                        tooltip: {
-                            callbacks: {
-                                label:
-                                    context =>
-                                        formatMoney(
-                                            context.raw
-                                        )
-                            }
-                        }
                     }
                 }
             }
@@ -2372,70 +2763,1212 @@ function renderExpenseChart() {
 }
 
 
-/* =========================================================
-   26. REPORTES
-   ========================================================= */
+/* ============================================================
+   27. LISTAS DE MOVIMIENTOS
+   ============================================================ */
 
-async function loadReports() {
-    const [
-        ingresos,
-        salidas,
-        aportes
-    ] = await Promise.all([
-        getTransactions("ingresos"),
-        getTransactions("salidas"),
-        getTransactions("aportes")
-    ]);
-
-    const income =
-        calculateTotal(
-            ingresos
-        );
-
-    const expenses =
-        calculateTotal(
-            salidas
-        );
-
-    const contributions =
-        calculateTotal(
-            aportes
-        );
-
-    const balance =
-        income -
-        expenses -
-        contributions;
-
-    setText(
-        formatMoney(income),
-        "[data-report-income]",
-        "#reportIncome"
+function renderTransactionLists() {
+    renderTransactionList(
+        "ingresos",
+        [
+            "[data-income-list]",
+            "#incomeList",
+            "#ingresosList"
+        ]
     );
 
-    setText(
-        formatMoney(expenses),
-        "[data-report-expenses]",
-        "#reportExpense"
+    renderTransactionList(
+        "salidas",
+        [
+            "[data-expense-list]",
+            "#expenseList",
+            "#salidasList"
+        ]
     );
 
-    setText(
-        formatMoney(contributions),
-        "[data-report-contributions]",
-        "#reportContribution"
-    );
-
-    setText(
-        formatMoney(balance),
-        "[data-report-balance]",
-        "#reportBalance"
+    renderTransactionList(
+        "aportes",
+        [
+            "[data-contribution-list]",
+            "#contributionList",
+            "#aportesList"
+        ]
     );
 }
 
 
-/* =========================================================
-   27. ADMINISTRACIÓN DE USUARIOS
-   ========================================================= */
+function renderTransactionList(
+    type,
+    selectors
+) {
+    const container =
+        getElement(
+            ...selectors
+        );
+
+    if (!container) {
+        return;
+    }
+
+    const rows =
+        financeData[type] ||
+        [];
+
+    if (!rows.length) {
+        container.innerHTML = `
+            <div class="finanzas-empty">
+                No hay registros.
+            </div>
+        `;
+
+        return;
+    }
+
+    container.innerHTML =
+        rows
+            .slice(0, 20)
+            .map(row =>
+                renderTransactionRow(
+                    row,
+                    type
+                )
+            )
+            .join("");
+
+    setupTransactionActionButtons();
+}
+
+
+function renderTransactionRow(
+    row,
+    type
+) {
+    const amount =
+        Number(
+            row.monto || 0
+        );
+
+    const date =
+        row.fecha ||
+        row.created_at;
+
+    const concept =
+        row.concepto ||
+        row.nombre ||
+        row.descripcion ||
+        "Movimiento";
+
+    const css =
+        type ===
+        "ingresos"
+            ? "finance-positive"
+            : type ===
+              "aportes"
+            ? "finance-contribution"
+            : "finance-negative";
+
+    return `
+        <div
+            class="transaction-row"
+            data-transaction-id="${escapeHTML(
+                row.id
+            )}"
+            data-transaction-type="${type}"
+        >
+
+            <div>
+                <strong>
+                    ${escapeHTML(
+                        concept
+                    )}
+                </strong>
+
+                <small>
+                    ${
+                        row.categoria
+                            ? escapeHTML(
+                                  row.categoria
+                              ) +
+                              " · "
+                            : ""
+                    }
+
+                    ${formatDate(
+                        date
+                    )}
+                </small>
+            </div>
+
+            <div class="${css}">
+                ${formatMoney(
+                    amount
+                )}
+            </div>
+
+            <div class="finance-actions">
+
+                <button
+                    type="button"
+                    class="
+                        finance-action
+                        finance-edit
+                    "
+                    data-edit-id="${escapeHTML(
+                        row.id
+                    )}"
+                    data-edit-type="${type}"
+                    title="Editar"
+                >
+                    <i class="
+                        fa-solid
+                        fa-pen
+                    "></i>
+                </button>
+
+                <button
+                    type="button"
+                    class="
+                        finance-action
+                        finance-delete
+                    "
+                    data-delete-id="${escapeHTML(
+                        row.id
+                    )}"
+                    data-delete-type="${type}"
+                    title="Eliminar"
+                >
+                    <i class="
+                        fa-solid
+                        fa-trash
+                    "></i>
+                </button>
+
+            </div>
+
+        </div>
+    `;
+}
+
+
+/* ============================================================
+   28. MODAL MOVIMIENTOS
+   ============================================================ */
+
+function openTransactionModal(
+    type,
+    existing = null
+) {
+    const labels = {
+        ingresos:
+            "Nuevo ingreso",
+
+        salidas:
+            "Nueva salida",
+
+        aportes:
+            "Nuevo aporte",
+
+        metas:
+            "Nueva meta"
+    };
+
+    const title =
+        existing
+            ? `Editar ${
+                  type ===
+                  "ingresos"
+                      ? "ingreso"
+                      : type ===
+                        "salidas"
+                      ? "salida"
+                      : type ===
+                        "aportes"
+                      ? "aporte"
+                      : "meta"
+              }`
+            : labels[type] ||
+              "Nuevo registro";
+
+    const modal =
+        document.createElement(
+            "div"
+        );
+
+    modal.className =
+        "finance-modal-backdrop";
+
+    modal.id =
+        "financeDynamicModal";
+
+    if (type === "metas") {
+        modal.innerHTML =
+            getGoalModalHTML(
+                title,
+                existing
+            );
+    } else {
+        modal.innerHTML =
+            getTransactionModalHTML(
+                title,
+                type,
+                existing
+            );
+    }
+
+    document.body.appendChild(
+        modal
+    );
+
+    setupDynamicModal(
+        modal,
+        type,
+        existing
+    );
+}
+
+
+function getTransactionModalHTML(
+    title,
+    type,
+    existing
+) {
+    const concept =
+        existing?.concepto ||
+        "";
+
+    const amount =
+        existing?.monto ||
+        "";
+
+    const category =
+        existing?.categoria ||
+        "";
+
+    const date =
+        existing?.fecha ||
+        formatDateInput(
+            new Date()
+        );
+
+    const description =
+        existing?.descripcion ||
+        "";
+
+    return `
+        <div class="finance-modal">
+
+            <div class="finance-modal-header">
+
+                <div>
+                    <small>
+                        FinanzasPersonales
+                    </small>
+
+                    <h2>
+                        ${title}
+                    </h2>
+                </div>
+
+                <button
+                    type="button"
+                    class="finance-modal-close"
+                    data-close-modal
+                >
+                    ×
+                </button>
+
+            </div>
+
+            <form
+                id="financeDynamicForm"
+            >
+
+                <div class="finance-form-grid">
+
+                    <div class="finance-form-group full">
+
+                        <label>
+                            Concepto
+                        </label>
+
+                        <input
+                            type="text"
+                            name="concepto"
+                            value="${escapeHTML(
+                                concept
+                            )}"
+                            placeholder="Ej. Sueldo, supermercado..."
+                            required
+                        >
+
+                    </div>
+
+                    <div class="finance-form-group">
+
+                        <label>
+                            Monto
+                        </label>
+
+                        <input
+                            type="number"
+                            name="monto"
+                            value="${escapeHTML(
+                                amount
+                            )}"
+                            min="0.01"
+                            step="0.01"
+                            placeholder="0.00"
+                            required
+                        >
+
+                    </div>
+
+                    <div class="finance-form-group">
+
+                        <label>
+                            Fecha
+                        </label>
+
+                        <input
+                            type="date"
+                            name="fecha"
+                            value="${escapeHTML(
+                                date
+                            )}"
+                            required
+                        >
+
+                    </div>
+
+                    <div class="finance-form-group">
+
+                        <label>
+                            Categoría
+                        </label>
+
+                        <input
+                            type="text"
+                            name="categoria"
+                            value="${escapeHTML(
+                                category
+                            )}"
+                            placeholder="Ej. Alimentación"
+                        >
+
+                    </div>
+
+                    <div class="finance-form-group full">
+
+                        <label>
+                            Descripción
+                        </label>
+
+                        <textarea
+                            name="descripcion"
+                            placeholder="Información adicional..."
+                        >${escapeHTML(
+                            description
+                        )}</textarea>
+
+                    </div>
+
+                </div>
+
+                <div class="finance-modal-footer">
+
+                    <button
+                        type="button"
+                        class="finance-btn-secondary"
+                        data-close-modal
+                    >
+                        Cancelar
+                    </button>
+
+                    <button
+                        type="submit"
+                        class="finance-btn-primary"
+                    >
+                        ${
+                            existing
+                                ? "Guardar cambios"
+                                : "Registrar"
+                        }
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
+    `;
+}
+
+
+function getGoalModalHTML(
+    title,
+    existing
+) {
+    const name =
+        existing?.nombre ||
+        "";
+
+    const target =
+        existing?.monto_objetivo ||
+        "";
+
+    const current =
+        existing?.monto_actual ||
+        "";
+
+    const description =
+        existing?.descripcion ||
+        "";
+
+    return `
+        <div class="finance-modal">
+
+            <div class="finance-modal-header">
+
+                <div>
+                    <small>
+                        FinanzasPersonales
+                    </small>
+
+                    <h2>
+                        ${title}
+                    </h2>
+                </div>
+
+                <button
+                    type="button"
+                    class="finance-modal-close"
+                    data-close-modal
+                >
+                    ×
+                </button>
+
+            </div>
+
+            <form
+                id="financeDynamicForm"
+            >
+
+                <div class="finance-form-grid">
+
+                    <div class="finance-form-group full">
+
+                        <label>
+                            Nombre de la meta
+                        </label>
+
+                        <input
+                            type="text"
+                            name="nombre"
+                            value="${escapeHTML(
+                                name
+                            )}"
+                            placeholder="Ej. Comprar laptop"
+                            required
+                        >
+
+                    </div>
+
+                    <div class="finance-form-group">
+
+                        <label>
+                            Monto objetivo
+                        </label>
+
+                        <input
+                            type="number"
+                            name="monto_objetivo"
+                            value="${escapeHTML(
+                                target
+                            )}"
+                            min="0.01"
+                            step="0.01"
+                            required
+                        >
+
+                    </div>
+
+                    <div class="finance-form-group">
+
+                        <label>
+                            Monto actual
+                        </label>
+
+                        <input
+                            type="number"
+                            name="monto_actual"
+                            value="${escapeHTML(
+                                current
+                            )}"
+                            min="0"
+                            step="0.01"
+                        >
+
+                    </div>
+
+                    <div class="finance-form-group full">
+
+                        <label>
+                            Descripción
+                        </label>
+
+                        <textarea
+                            name="descripcion"
+                            placeholder="Describe tu objetivo..."
+                        >${escapeHTML(
+                            description
+                        )}</textarea>
+
+                    </div>
+
+                </div>
+
+                <div class="finance-modal-footer">
+
+                    <button
+                        type="button"
+                        class="finance-btn-secondary"
+                        data-close-modal
+                    >
+                        Cancelar
+                    </button>
+
+                    <button
+                        type="submit"
+                        class="finance-btn-primary"
+                    >
+                        ${
+                            existing
+                                ? "Guardar cambios"
+                                : "Crear meta"
+                        }
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
+    `;
+}
+
+
+/* ============================================================
+   29. MODAL EVENTS
+   ============================================================ */
+
+function setupDynamicModal(
+    modal,
+    type,
+    existing
+) {
+    modal
+        .querySelectorAll(
+            "[data-close-modal]"
+        )
+        .forEach(button => {
+            button.addEventListener(
+                "click",
+                closeDynamicModal
+            );
+        });
+
+    modal.addEventListener(
+        "click",
+        event => {
+            if (
+                event.target ===
+                modal
+            ) {
+                closeDynamicModal();
+            }
+        }
+    );
+
+    const form =
+        modal.querySelector(
+            "#financeDynamicForm"
+        );
+
+    form?.addEventListener(
+        "submit",
+        async event => {
+            event.preventDefault();
+
+            const submit =
+                form.querySelector(
+                    'button[type="submit"]'
+                );
+
+            if (submit) {
+                submit.disabled =
+                    true;
+
+                submit.textContent =
+                    "Guardando...";
+            }
+
+            try {
+                const formData =
+                    new FormData(
+                        form
+                    );
+
+                const values =
+                    Object.fromEntries(
+                        formData.entries()
+                    );
+
+                if (
+                    type ===
+                    "metas"
+                ) {
+                    await saveGoal(
+                        values,
+                        existing
+                    );
+                } else {
+                    await saveTransaction(
+                        type,
+                        values,
+                        existing
+                    );
+                }
+
+                closeDynamicModal();
+
+                await loadDashboard();
+
+                if (
+                    currentSection ===
+                    "metas"
+                ) {
+                    await loadGoalsPage();
+                }
+
+                showToast(
+                    existing
+                        ? "Cambios guardados correctamente."
+                        : "Registro creado correctamente.",
+                    "success"
+                );
+            } catch (error) {
+                console.error(
+                    "❌ Guardado:",
+                    error
+                );
+
+                showToast(
+                    error?.message ||
+                        "No se pudo guardar.",
+                    "error"
+                );
+            } finally {
+                if (submit) {
+                    submit.disabled =
+                        false;
+                }
+            }
+        }
+    );
+}
+
+
+function closeDynamicModal() {
+    const modal =
+        document.getElementById(
+            "financeDynamicModal"
+        );
+
+    modal?.remove();
+}
+
+
+/* ============================================================
+   30. GUARDAR MOVIMIENTO
+   ============================================================ */
+
+async function saveTransaction(
+    type,
+    values,
+    existing
+) {
+    if (!currentUser?.id) {
+        throw new Error(
+            "No hay una sesión activa."
+        );
+    }
+
+    const table =
+        type;
+
+    const payload = {
+        user_id:
+            currentUser.id,
+
+        concepto:
+            values.concepto
+                ?.trim(),
+
+        monto:
+            Number(
+                values.monto
+            ),
+
+        categoria:
+            values.categoria
+                ?.trim() ||
+            null,
+
+        fecha:
+            values.fecha,
+
+        descripcion:
+            values.descripcion
+                ?.trim() ||
+            null
+    };
+
+    if (
+        !payload.concepto
+    ) {
+        throw new Error(
+            "El concepto es obligatorio."
+        );
+    }
+
+    if (
+        !payload.monto ||
+        payload.monto <= 0
+    ) {
+        throw new Error(
+            "El monto debe ser mayor a 0."
+        );
+    }
+
+    if (existing) {
+        const {
+            error
+        } =
+            await supabaseClient
+                .from(table)
+                .update(
+                    payload
+                )
+                .eq(
+                    "id",
+                    existing.id
+                )
+                .eq(
+                    "user_id",
+                    currentUser.id
+                );
+
+        if (error) {
+            throw error;
+        }
+    } else {
+        const {
+            error
+        } =
+            await supabaseClient
+                .from(table)
+                .insert(
+                    payload
+                );
+
+        if (error) {
+            throw error;
+        }
+    }
+}
+
+
+/* ============================================================
+   31. GUARDAR META
+   ============================================================ */
+
+async function saveGoal(
+    values,
+    existing
+) {
+    if (!currentUser?.id) {
+        throw new Error(
+            "No hay una sesión activa."
+        );
+    }
+
+    const payload = {
+        user_id:
+            currentUser.id,
+
+        nombre:
+            values.nombre
+                ?.trim(),
+
+        monto_objetivo:
+            Number(
+                values.monto_objetivo
+            ),
+
+        monto_actual:
+            Number(
+                values.monto_actual ||
+                    0
+            ),
+
+        descripcion:
+            values.descripcion
+                ?.trim() ||
+            null
+    };
+
+    if (
+        !payload.nombre
+    ) {
+        throw new Error(
+            "El nombre de la meta es obligatorio."
+        );
+    }
+
+    if (
+        !payload.monto_objetivo ||
+        payload.monto_objetivo <= 0
+    ) {
+        throw new Error(
+            "El monto objetivo debe ser mayor a 0."
+        );
+    }
+
+    if (existing) {
+        const {
+            error
+        } =
+            await supabaseClient
+                .from("metas")
+                .update(
+                    payload
+                )
+                .eq(
+                    "id",
+                    existing.id
+                )
+                .eq(
+                    "user_id",
+                    currentUser.id
+                );
+
+        if (error) {
+            throw error;
+        }
+    } else {
+        const {
+            error
+        } =
+            await supabaseClient
+                .from("metas")
+                .insert(
+                    payload
+                );
+
+        if (error) {
+            throw error;
+        }
+    }
+}
+
+
+/* ============================================================
+   32. EDITAR / ELIMINAR
+   ============================================================ */
+
+function setupTransactionActionButtons() {
+    document
+        .querySelectorAll(
+            "[data-edit-id]"
+        )
+        .forEach(button => {
+            if (
+                button.dataset.bound
+            ) {
+                return;
+            }
+
+            button.dataset.bound =
+                "true";
+
+            button.addEventListener(
+                "click",
+                () => {
+                    const id =
+                        button.dataset
+                            .editId;
+
+                    const type =
+                        button.dataset
+                            .editType;
+
+                    const item =
+                        (
+                            financeData[
+                                type
+                            ] || []
+                        ).find(
+                            row =>
+                                String(
+                                    row.id
+                                ) ===
+                                String(
+                                    id
+                                )
+                        );
+
+                    if (item) {
+                        openTransactionModal(
+                            type,
+                            item
+                        );
+                    }
+                }
+            );
+        });
+
+    document
+        .querySelectorAll(
+            "[data-delete-id]"
+        )
+        .forEach(button => {
+            if (
+                button.dataset.bound
+            ) {
+                return;
+            }
+
+            button.dataset.bound =
+                "true";
+
+            button.addEventListener(
+                "click",
+                async () => {
+                    const id =
+                        button.dataset
+                            .deleteId;
+
+                    const type =
+                        button.dataset
+                            .deleteType;
+
+                    await deleteTransaction(
+                        type,
+                        id
+                    );
+                }
+            );
+        });
+}
+
+
+async function deleteTransaction(
+    type,
+    id
+) {
+    const labels = {
+        ingresos:
+            "ingreso",
+
+        salidas:
+            "salida",
+
+        aportes:
+            "aporte"
+    };
+
+    const confirmed =
+        confirm(
+            `¿Seguro que deseas eliminar este ${
+                labels[type] ||
+                "registro"
+            }?\n\nEsta acción no se puede deshacer.`
+        );
+
+    if (!confirmed) {
+        return;
+    }
+
+    try {
+        const {
+            error
+        } =
+            await supabaseClient
+                .from(type)
+                .delete()
+                .eq(
+                    "id",
+                    id
+                )
+                .eq(
+                    "user_id",
+                    currentUser.id
+                );
+
+        if (error) {
+            throw error;
+        }
+
+        showToast(
+            "Registro eliminado correctamente.",
+            "success"
+        );
+
+        await loadDashboard();
+    } catch (error) {
+        console.error(
+            "❌ Eliminar:",
+            error
+        );
+
+        showToast(
+            "No se pudo eliminar el registro.",
+            "error"
+        );
+    }
+}
+
+
+/* ============================================================
+   33. BOTONES NUEVO MOVIMIENTO
+   ============================================================ */
+
+function setupQuickActions() {
+    document
+        .querySelectorAll(
+            "[data-quick-action]"
+        )
+        .forEach(button => {
+            if (
+                button.dataset
+                    .quickBound
+            ) {
+                return;
+            }
+
+            button.dataset.quickBound =
+                "true";
+
+            button.addEventListener(
+                "click",
+                () => {
+                    const action =
+                        String(
+                            button
+                                .dataset
+                                .quickAction ||
+                                ""
+                        ).toLowerCase();
+
+                    openAction(
+                        action
+                    );
+                }
+            );
+        });
+
+    document
+        .querySelectorAll(
+            "[data-action]"
+        )
+        .forEach(button => {
+            if (
+                button.dataset
+                    .actionBound
+            ) {
+                return;
+            }
+
+            const action =
+                String(
+                    button
+                        .dataset
+                        .action ||
+                        ""
+                ).toLowerCase();
+
+            if (
+                ![
+                    "nuevo-ingreso",
+                    "nuevo-salida",
+                    "nuevo-aporte",
+                    "nueva-meta"
+                ].includes(
+                    action
+                )
+            ) {
+                return;
+            }
+
+            button.dataset.actionBound =
+                "true";
+
+            button.addEventListener(
+                "click",
+                () =>
+                    openAction(
+                        action
+                    )
+            );
+        });
+}
+
+
+function openAction(
+    action
+) {
+    const map = {
+        ingreso:
+            "ingresos",
+
+        "nuevo-ingreso":
+            "ingresos",
+
+        salida:
+            "salidas",
+
+        "nuevo-salida":
+            "salidas",
+
+        aporte:
+            "aportes",
+
+        "nuevo-aporte":
+            "aportes",
+
+        meta:
+            "metas",
+
+        "nueva-meta":
+            "metas"
+    };
+
+    const type =
+        map[action];
+
+    if (!type) {
+        return;
+    }
+
+    openTransactionModal(
+        type
+    );
+}
+
+
+/* ============================================================
+   34. ADMIN USUARIOS
+   ============================================================ */
 
 async function loadUsers() {
     if (!isAdmin()) {
@@ -2464,28 +3997,20 @@ async function loadUsers() {
                 .order(
                     "created_at",
                     {
-                        ascending: false
+                        ascending:
+                            false
                     }
                 );
 
         if (error) {
-            console.error(
-                "❌ Error cargando usuarios:",
-                error
-            );
-
-            showToast(
-                "No se pudieron cargar los usuarios.",
-                "error"
-            );
-
-            return;
+            throw error;
         }
 
-        allUsers = data || [];
+        allUsers =
+            data || [];
 
         renderUsers(
-            allUsers
+            applyUserFilters()
         );
 
         updateUserCount(
@@ -2493,14 +4018,21 @@ async function loadUsers() {
         );
     } catch (error) {
         console.error(
-            "❌ Error usuarios:",
+            "❌ Usuarios:",
             error
+        );
+
+        showToast(
+            "No se pudieron cargar los usuarios.",
+            "error"
         );
     }
 }
 
 
-function renderUsers(users) {
+function renderUsers(
+    users
+) {
     const container =
         getElement(
             "[data-users-list]",
@@ -2508,36 +4040,36 @@ function renderUsers(users) {
             "#users-list"
         );
 
-    if (!container) return;
-
-    if (!users.length) {
-        container.innerHTML = `
-            <tr>
-                <td
-                    colspan="7"
-                    style="
-                        text-align:center;
-                        padding:40px;
-                    "
-                >
-                    No se encontraron usuarios.
-                </td>
-            </tr>
-        `;
-
+    if (!container) {
         return;
     }
-
-    /* Si es tbody */
 
     if (
         container.tagName ===
         "TBODY"
     ) {
+        if (!users.length) {
+            container.innerHTML = `
+                <tr>
+                    <td
+                        colspan="7"
+                        style="
+                            text-align:center;
+                            padding:40px;
+                        "
+                    >
+                        No se encontraron usuarios.
+                    </td>
+                </tr>
+            `;
+
+            return;
+        }
+
         container.innerHTML =
             users
                 .map(user => {
-                    const fullName =
+                    const name =
                         `${user.nombre || ""} ${
                             user.apellido || ""
                         }`.trim() ||
@@ -2562,8 +4094,8 @@ function renderUsers(users) {
                                 ">
 
                                     <div style="
-                                        width:38px;
-                                        height:38px;
+                                        width:40px;
+                                        height:40px;
                                         border-radius:50%;
                                         display:flex;
                                         align-items:center;
@@ -2572,9 +4104,8 @@ function renderUsers(users) {
                                         background:rgba(99,102,241,.12);
                                     ">
                                         ${escapeHTML(
-                                            getInitials(
-                                                user.nombre,
-                                                user.apellido
+                                            getUserInitials(
+                                                user
                                             )
                                         )}
                                     </div>
@@ -2582,13 +4113,13 @@ function renderUsers(users) {
                                     <div>
                                         <strong>
                                             ${escapeHTML(
-                                                fullName
+                                                name
                                             )}
                                         </strong>
 
                                         <small style="
                                             display:block;
-                                            opacity:.65;
+                                            opacity:.6;
                                         ">
                                             ${escapeHTML(
                                                 user.email ||
@@ -2649,12 +4180,24 @@ function renderUsers(users) {
 
                             <td>
                                 ${
-                                    user.id !==
+                                    user.id ===
                                     currentUser?.id
                                         ? `
+                                            <span style="
+                                                opacity:.5;
+                                                font-size:12px;
+                                            ">
+                                                Tú
+                                            </span>
+                                        `
+                                        : `
                                             <button
                                                 type="button"
-                                                class="user-status-btn"
+                                                class="finance-action ${
+                                                    active
+                                                        ? "finance-delete"
+                                                        : "finance-edit"
+                                                } user-status-btn"
                                                 data-user-id="${escapeHTML(
                                                     user.id
                                                 )}"
@@ -2662,7 +4205,7 @@ function renderUsers(users) {
                                                     active
                                                         ? "Desactivar"
                                                         : "Activar"
-                                                } usuario"
+                                                }"
                                             >
                                                 <i class="
                                                     fa-solid
@@ -2673,16 +4216,6 @@ function renderUsers(users) {
                                                     }
                                                 "></i>
                                             </button>
-                                        `
-                                        : `
-                                            <span
-                                                style="
-                                                    opacity:.5;
-                                                    font-size:12px;
-                                                "
-                                            >
-                                                Tú
-                                            </span>
                                         `
                                 }
                             </td>
@@ -2697,23 +4230,16 @@ function renderUsers(users) {
         return;
     }
 
-    /* Fallback para contenedores DIV */
-
     container.innerHTML =
         users
             .map(user => {
-                const fullName =
-                    `${user.nombre || ""} ${
-                        user.apellido || ""
-                    }`.trim() ||
-                    user.usuario ||
-                    "Sin nombre";
-
                 return `
                     <div class="user-row">
                         <strong>
                             ${escapeHTML(
-                                fullName
+                                `${user.nombre || ""} ${
+                                    user.apellido || ""
+                                }`
                             )}
                         </strong>
 
@@ -2730,6 +4256,25 @@ function renderUsers(users) {
 }
 
 
+function getUserInitials(
+    user
+) {
+    const initials =
+        `${user.nombre || ""}${user.apellido || ""}`
+            .replace(
+                /\s/g,
+                ""
+            )
+            .slice(0, 2)
+            .toUpperCase();
+
+    return (
+        initials ||
+        "U"
+    );
+}
+
+
 function setupUserActionButtons() {
     document
         .querySelectorAll(
@@ -2739,15 +4284,10 @@ function setupUserActionButtons() {
             button.addEventListener(
                 "click",
                 async () => {
-                    const userId =
+                    await toggleUserStatus(
                         button.dataset
-                            .userId;
-
-                    if (userId) {
-                        await toggleUserStatus(
-                            userId
-                        );
-                    }
+                            .userId
+                    );
                 }
             );
         });
@@ -2790,31 +4330,37 @@ async function toggleUserStatus(
     const user =
         allUsers.find(
             item =>
-                item.id ===
-                userId
+                String(
+                    item.id
+                ) ===
+                String(
+                    userId
+                )
         );
 
-    if (!user) return;
+    if (!user) {
+        return;
+    }
 
-    const currentlyActive =
+    const active =
         String(
             user.estado ||
                 "activo"
         ).toLowerCase() ===
         "activo";
 
-    const newStatus =
-        currentlyActive
+    const next =
+        active
             ? "inactivo"
             : "activo";
 
     const confirmed =
         confirm(
             `¿Deseas ${
-                currentlyActive
+                active
                     ? "desactivar"
                     : "activar"
-            } a ${user.nombre || user.usuario}?`
+            } este usuario?`
         );
 
     if (!confirmed) {
@@ -2829,7 +4375,7 @@ async function toggleUserStatus(
                 .from("profiles")
                 .update({
                     estado:
-                        newStatus
+                        next
                 })
                 .eq(
                     "id",
@@ -2837,21 +4383,11 @@ async function toggleUserStatus(
                 );
 
         if (error) {
-            console.error(
-                "❌ Error cambiando estado:",
-                error
-            );
-
-            showToast(
-                "No se pudo actualizar el estado.",
-                "error"
-            );
-
-            return;
+            throw error;
         }
 
         user.estado =
-            newStatus;
+            next;
 
         renderUsers(
             applyUserFilters()
@@ -2863,41 +4399,46 @@ async function toggleUserStatus(
 
         showToast(
             `Usuario ${
-                newStatus ===
+                next ===
                 "activo"
                     ? "activado"
                     : "desactivado"
-            } correctamente.`,
+            }.`,
             "success"
         );
     } catch (error) {
         console.error(
-            "❌ Error estado usuario:",
+            "❌ Estado usuario:",
             error
+        );
+
+        showToast(
+            "No se pudo actualizar el usuario.",
+            "error"
         );
     }
 }
 
 
-/* =========================================================
-   28. BUSCAR Y FILTRAR USUARIOS
-   ========================================================= */
+/* ============================================================
+   35. FILTROS USUARIOS
+   ============================================================ */
 
 function setupUserFilters() {
-    const searchInput =
+    const search =
         getElement(
             "[data-user-search]",
             "#userSearch",
             "#user-search"
         );
 
-    const roleFilter =
+    const role =
         getElement(
             "[data-user-role-filter]",
             "#userRoleFilter"
         );
 
-    const statusFilter =
+    const status =
         getElement(
             "[data-user-status-filter]",
             "#userStatusFilter"
@@ -2906,31 +4447,31 @@ function setupUserFilters() {
     const apply =
         debounce(
             () => {
-                const filtered =
+                const result =
                     applyUserFilters();
 
                 renderUsers(
-                    filtered
+                    result
                 );
 
                 updateUserCount(
-                    filtered
+                    result
                 );
             },
             200
         );
 
-    searchInput?.addEventListener(
+    search?.addEventListener(
         "input",
         apply
     );
 
-    roleFilter?.addEventListener(
+    role?.addEventListener(
         "change",
         apply
     );
 
-    statusFilter?.addEventListener(
+    status?.addEventListener(
         "change",
         apply
     );
@@ -2938,54 +4479,55 @@ function setupUserFilters() {
 
 
 function applyUserFilters() {
-    const searchInput =
+    const search =
         getElement(
             "[data-user-search]",
             "#userSearch",
             "#user-search"
         );
 
-    const roleFilter =
+    const role =
         getElement(
             "[data-user-role-filter]",
             "#userRoleFilter"
         );
 
-    const statusFilter =
+    const status =
         getElement(
             "[data-user-status-filter]",
             "#userStatusFilter"
         );
 
-    const search =
+    const searchValue =
         String(
-            searchInput?.value || ""
+            search?.value || ""
         )
             .trim()
             .toLowerCase();
 
-    const role =
+    const roleValue =
         String(
-            roleFilter?.value || ""
+            role?.value || ""
         )
             .trim()
             .toLowerCase();
 
-    const status =
+    const statusValue =
         String(
-            statusFilter?.value || ""
+            status?.value || ""
         )
             .trim()
             .toLowerCase();
 
     return allUsers.filter(
         user => {
-            const searchable = `
-                ${user.nombre || ""}
-                ${user.apellido || ""}
-                ${user.email || ""}
-                ${user.usuario || ""}
-            `.toLowerCase();
+            const text =
+                `
+                    ${user.nombre || ""}
+                    ${user.apellido || ""}
+                    ${user.email || ""}
+                    ${user.usuario || ""}
+                `.toLowerCase();
 
             const userRole =
                 String(
@@ -2998,35 +4540,26 @@ function applyUserFilters() {
                         "activo"
                 ).toLowerCase();
 
-            const matchesSearch =
-                !search ||
-                searchable.includes(
-                    search
-                );
-
-            const matchesRole =
-                !role ||
-                userRole ===
-                    role;
-
-            const matchesStatus =
-                !status ||
-                userStatus ===
-                    status;
-
             return (
-                matchesSearch &&
-                matchesRole &&
-                matchesStatus
+                (!searchValue ||
+                    text.includes(
+                        searchValue
+                    )) &&
+                (!roleValue ||
+                    userRole ===
+                        roleValue) &&
+                (!statusValue ||
+                    userStatus ===
+                        statusValue)
             );
         }
     );
 }
 
 
-/* =========================================================
-   29. MODAL CREAR USUARIO
-   ========================================================= */
+/* ============================================================
+   36. CREAR USUARIO
+   ============================================================ */
 
 function openCreateUserModal() {
     const modal =
@@ -3034,15 +4567,18 @@ function openCreateUserModal() {
             "createUserModal"
         );
 
-    if (!modal) return;
+    if (!modal) {
+        return;
+    }
+
+    modal.style.display =
+        "";
 
     modal.classList.add(
         "active",
         "open",
         "show"
     );
-
-    modal.style.display = "";
 
     document.body.classList.add(
         "modal-open"
@@ -3056,7 +4592,12 @@ function closeCreateUserModal() {
             "createUserModal"
         );
 
-    if (!modal) return;
+    if (!modal) {
+        return;
+    }
+
+    modal.style.display =
+        "none";
 
     modal.classList.remove(
         "active",
@@ -3064,51 +4605,13 @@ function closeCreateUserModal() {
         "show"
     );
 
-    modal.style.display =
-        "none";
-
     document.body.classList.remove(
         "modal-open"
     );
 }
 
 
-function setupModalEvents() {
-    /* Abrir por data attribute */
-
-    document
-        .querySelectorAll(
-            "[data-modal-open]"
-        )
-        .forEach(button => {
-            button.addEventListener(
-                "click",
-                () => {
-                    const modalId =
-                        button.dataset
-                            .modalOpen;
-
-                    const modal =
-                        document.getElementById(
-                            modalId
-                        );
-
-                    if (modal) {
-                        modal.classList.add(
-                            "active",
-                            "open",
-                            "show"
-                        );
-
-                        modal.style.display =
-                            "";
-                    }
-                }
-            );
-        });
-
-    /* Crear usuario */
-
+function setupCreateUserModal() {
     document
         .querySelectorAll(
             "#createUserBtn, [data-create-user-open]"
@@ -3120,11 +4623,9 @@ function setupModalEvents() {
             );
         });
 
-    /* Cerrar */
-
     document
         .querySelectorAll(
-            "[data-modal-close], #cancelCreateUser, #closeCreateUserModal"
+            "#cancelCreateUser, #closeCreateUserModal"
         )
         .forEach(button => {
             button.addEventListener(
@@ -3132,23 +4633,6 @@ function setupModalEvents() {
                 closeCreateUserModal
             );
         });
-
-    const modal =
-        document.getElementById(
-            "createUserModal"
-        );
-
-    modal?.addEventListener(
-        "click",
-        event => {
-            if (
-                event.target ===
-                modal
-            ) {
-                closeCreateUserModal();
-            }
-        }
-    );
 
     const form =
         document.getElementById(
@@ -3161,10 +4645,6 @@ function setupModalEvents() {
     );
 }
 
-
-/* =========================================================
-   30. CREAR USUARIO
-   ========================================================= */
 
 async function handleCreateUser(
     event
@@ -3180,20 +4660,26 @@ async function handleCreateUser(
         return;
     }
 
+    const getValue =
+        id =>
+            document.getElementById(
+                id
+            )?.value?.trim();
+
     const nombre =
-        document.getElementById(
+        getValue(
             "newUserNombre"
-        )?.value?.trim();
+        );
 
     const apellido =
-        document.getElementById(
+        getValue(
             "newUserApellido"
-        )?.value?.trim();
+        );
 
     const usuario =
-        document.getElementById(
+        getValue(
             "newUserUsuario"
-        )?.value?.trim();
+        );
 
     const moneda =
         document.getElementById(
@@ -3202,24 +4688,14 @@ async function handleCreateUser(
         "PEN";
 
     const email =
-        document.getElementById(
+        getValue(
             "newUserEmail"
-        )?.value?.trim();
+        );
 
     const password =
         document.getElementById(
             "newUserPassword"
         )?.value;
-
-    const message =
-        document.getElementById(
-            "createUserMessage"
-        );
-
-    const submitButton =
-        document.getElementById(
-            "createUserSubmit"
-        );
 
     if (
         !nombre ||
@@ -3229,14 +4705,17 @@ async function handleCreateUser(
         !password
     ) {
         showToast(
-            "Completa todos los campos obligatorios.",
+            "Completa todos los campos.",
             "warning"
         );
 
         return;
     }
 
-    if (password.length < 6) {
+    if (
+        password.length <
+        6
+    ) {
         showToast(
             "La contraseña debe tener al menos 6 caracteres.",
             "warning"
@@ -3245,27 +4724,18 @@ async function handleCreateUser(
         return;
     }
 
-    const userData = {
-        nombre,
-        apellido,
-        usuario,
-        moneda,
-        email,
-        password
-    };
+    const submit =
+        document.getElementById(
+            "createUserSubmit"
+        );
 
     try {
-        if (submitButton) {
-            submitButton.disabled =
+        if (submit) {
+            submit.disabled =
                 true;
 
-            submitButton.innerHTML =
-                "Creando usuario...";
-        }
-
-        if (message) {
-            message.textContent =
-                "Creando usuario...";
+            submit.textContent =
+                "Creando...";
         }
 
         const {
@@ -3275,16 +4745,18 @@ async function handleCreateUser(
             await supabaseClient.functions.invoke(
                 "crear-usuario",
                 {
-                    body: userData
+                    body: {
+                        nombre,
+                        apellido,
+                        usuario,
+                        moneda,
+                        email,
+                        password
+                    }
                 }
             );
 
         if (error) {
-            console.error(
-                "❌ Error Edge Function:",
-                error
-            );
-
             throw error;
         }
 
@@ -3292,11 +4764,6 @@ async function handleCreateUser(
             "✅ Usuario creado:",
             data
         );
-
-        if (message) {
-            message.textContent =
-                "Usuario creado correctamente.";
-        }
 
         showToast(
             "Usuario creado correctamente.",
@@ -3309,48 +4776,37 @@ async function handleCreateUser(
             )
             ?.reset();
 
-        setTimeout(
-            closeCreateUserModal,
-            700
-        );
+        closeCreateUserModal();
 
         await loadUsers();
     } catch (error) {
         console.error(
-            "❌ Error creando usuario:",
+            "❌ Crear usuario:",
             error
         );
 
-        const errorMessage =
-            error?.message ||
-            "No se pudo crear el usuario.";
-
-        if (message) {
-            message.textContent =
-                errorMessage;
-        }
-
         showToast(
-            errorMessage,
+            error?.message ||
+                "No se pudo crear el usuario.",
             "error"
         );
     } finally {
-        if (submitButton) {
-            submitButton.disabled =
+        if (submit) {
+            submit.disabled =
                 false;
 
-            submitButton.innerHTML =
+            submit.textContent =
                 "Crear usuario";
         }
     }
 }
 
 
-/* =========================================================
-   31. GENERADOR DE CONTRASEÑAS
-   ========================================================= */
+/* ============================================================
+   37. GENERADOR PASSWORD
+   ============================================================ */
 
-function generateSecurePassword(
+function generatePassword(
     length = 12
 ) {
     const upper =
@@ -3406,10 +4862,9 @@ function generateSecurePassword(
             )
         ];
 
-    for (
-        let i = password.length;
-        i < length;
-        i++
+    while (
+        password.length <
+        length
     ) {
         password +=
             all[
@@ -3443,7 +4898,10 @@ function setupPasswordGenerator() {
             "newUserPassword"
         );
 
-    if (!button || !input) {
+    if (
+        !button ||
+        !input
+    ) {
         return;
     }
 
@@ -3451,7 +4909,7 @@ function setupPasswordGenerator() {
         "click",
         () => {
             input.value =
-                generateSecurePassword(
+                generatePassword(
                     12
                 );
 
@@ -3475,174 +4933,11 @@ function setupPasswordGenerator() {
 }
 
 
-/* =========================================================
-   32. ACCIONES RÁPIDAS
-   ========================================================= */
+/* ============================================================
+   38. KEYBOARD
+   ============================================================ */
 
-function setupQuickActions() {
-    document
-        .querySelectorAll(
-            "[data-quick-action]"
-        )
-        .forEach(button => {
-            button.addEventListener(
-                "click",
-                () => {
-                    const action =
-                        button.dataset
-                            .quickAction;
-
-                    handleQuickAction(
-                        action
-                    );
-                }
-            );
-        });
-}
-
-
-function handleQuickAction(
-    action
-) {
-    switch (
-        String(action || "")
-            .toLowerCase()
-    ) {
-        case "ingreso":
-        case "nuevo-ingreso":
-            showSection(
-                "ingresos"
-            );
-
-            showToast(
-                "Sección de ingresos abierta.",
-                "info"
-            );
-
-            break;
-
-        case "salida":
-        case "nuevo-salida":
-            showSection(
-                "salidas"
-            );
-
-            showToast(
-                "Sección de salidas abierta.",
-                "info"
-            );
-
-            break;
-
-        case "aporte":
-        case "nuevo-aporte":
-            showSection(
-                "aportes"
-            );
-
-            showToast(
-                "Sección de aportes abierta.",
-                "info"
-            );
-
-            break;
-
-        case "meta":
-        case "nueva-meta":
-            showSection(
-                "metas"
-            );
-
-            showToast(
-                "Sección de metas abierta.",
-                "info"
-            );
-
-            break;
-
-        default:
-            console.warn(
-                "⚠️ Acción desconocida:",
-                action
-            );
-    }
-}
-
-
-/* =========================================================
-   33. BOTONES GENÉRICOS DE MOVIMIENTOS
-   ========================================================= */
-
-function setupTransactionButtons() {
-    document
-        .querySelectorAll(
-            "[data-action]"
-        )
-        .forEach(button => {
-            if (
-                button.dataset
-                    .transactionBound
-            ) {
-                return;
-            }
-
-            const action =
-                String(
-                    button.dataset
-                        .action || ""
-                ).toLowerCase();
-
-            const validActions = [
-                "nuevo-ingreso",
-                "nuevo-salida",
-                "nuevo-aporte",
-                "nueva-meta"
-            ];
-
-            if (
-                !validActions.includes(
-                    action
-                )
-            ) {
-                return;
-            }
-
-            button.dataset.transactionBound =
-                "true";
-
-            button.addEventListener(
-                "click",
-                () => {
-                    const sectionMap = {
-                        "nuevo-ingreso":
-                            "ingresos",
-
-                        "nuevo-salida":
-                            "salidas",
-
-                        "nuevo-aporte":
-                            "aportes",
-
-                        "nueva-meta":
-                            "metas"
-                    };
-
-                    showSection(
-                        sectionMap[
-                            action
-                        ]
-                    );
-                }
-            );
-        });
-}
-
-
-/* =========================================================
-   34. TECLADO / UX
-   ========================================================= */
-
-function setupKeyboardUX() {
+function setupKeyboard() {
     document.addEventListener(
         "keydown",
         event => {
@@ -3651,6 +4946,9 @@ function setupKeyboardUX() {
                 "Escape"
             ) {
                 closeSidebar();
+
+                closeDynamicModal();
+
                 closeCreateUserModal();
             }
         }
@@ -3658,9 +4956,9 @@ function setupKeyboardUX() {
 }
 
 
-/* =========================================================
-   35. AUTH STATE
-   ========================================================= */
+/* ============================================================
+   39. AUTH LISTENER
+   ============================================================ */
 
 function setupAuthListener() {
     if (!supabaseClient) {
@@ -3683,24 +4981,17 @@ function setupAuthListener() {
                 currentUser =
                     session.user;
 
-                /*
-                 * INITIAL_SESSION y SIGNED_IN
-                 * son suficientes para inicializar.
-                 */
                 if (
                     event ===
                         "SIGNED_IN" ||
                     event ===
                         "INITIAL_SESSION"
                 ) {
-                    /*
-                     * Evitamos trabajo duplicado
-                     * cuando Supabase dispara
-                     * ambos eventos.
-                     */
                     await initializeAuthenticatedApp();
                 }
-            } else if (
+            }
+
+            if (
                 event ===
                     "SIGNED_OUT" ||
                 event ===
@@ -3719,9 +5010,9 @@ function setupAuthListener() {
 }
 
 
-/* =========================================================
-   36. EVENTOS PRINCIPALES
-   ========================================================= */
+/* ============================================================
+   40. EVENTOS PRINCIPALES
+   ============================================================ */
 
 function setupMainEvents() {
     loginForm?.addEventListener(
@@ -3736,35 +5027,39 @@ function setupMainEvents() {
 }
 
 
-/* =========================================================
-   37. DETECTAR CAMBIO DE TAMAÑO
-   ========================================================= */
-
-function setupResponsiveUX() {
+function setupResponsive() {
     window.addEventListener(
         "resize",
-        debounce(() => {
-            if (
-                window.innerWidth >
-                1024
-            ) {
-                closeSidebar();
-            }
-        }, 150)
+        debounce(
+            () => {
+                if (
+                    window.innerWidth >
+                    1024
+                ) {
+                    closeSidebar();
+                }
+            },
+            150
+        )
     );
 }
 
 
-/* =========================================================
-   38. INICIALIZACIÓN
-   ========================================================= */
+/* ============================================================
+   41. INICIO
+   ============================================================ */
 
 async function init() {
     console.log(
-        "💰 FinanzasPersonales listo."
+        "💰 FinanzasPersonales PRO MAX listo."
     );
 
     injectRuntimeStyles();
+
+    /*
+     * Reportes desaparece.
+     */
+    removeReportsFromUI();
 
     setupMainEvents();
 
@@ -3776,36 +5071,42 @@ async function init() {
 
     setupTheme();
 
-    setupModalEvents();
+    setupQuickActions();
 
     setupPasswordGenerator();
 
+    setupCreateUserModal();
+
     setupUserFilters();
 
-    setupQuickActions();
+    setupKeyboard();
 
-    setupTransactionButtons();
-
-    setupKeyboardUX();
-
-    setupResponsiveUX();
+    setupResponsive();
 
     setupAuthListener();
+
+    /*
+     * Dashboard por defecto.
+     */
+    updatePageHeader(
+        "dashboard"
+    );
 
     await checkSession();
 }
 
 
-/* =========================================================
-   39. API GLOBAL
-   ========================================================= */
+/* ============================================================
+   42. API GLOBAL
+   ============================================================ */
 
 window.FinanzasApp = {
-    getCurrentUser: () =>
-        currentUser,
 
-    getCurrentProfile: () =>
-        currentProfile,
+    getCurrentUser:
+        () => currentUser,
+
+    getCurrentProfile:
+        () => currentProfile,
 
     isAdmin,
 
@@ -3823,19 +5124,17 @@ window.FinanzasApp = {
 
     loadGoalsPage,
 
-    loadReports,
+    openTransactionModal,
 
-    logout,
+    closeDynamicModal,
 
-    openCreateUserModal,
-
-    closeCreateUserModal
+    logout
 };
 
 
-/* =========================================================
-   40. ARRANQUE
-   ========================================================= */
+/* ============================================================
+   43. ARRANQUE
+   ============================================================ */
 
 if (
     document.readyState ===
