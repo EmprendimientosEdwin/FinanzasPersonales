@@ -16,8 +16,8 @@ let supabaseClient = null;
 
 if (
 window.supabase &&
-SUPABASE_URL !== "TU_SUPABASE_URL" &&
-SUPABASE_ANON_KEY !== "TU_SUPABASE_ANON_KEY"
+SUPABASE_URL !== "https://xwkxgrktsdejoaqnbiwk.supabase.co/rest/v1/" &&
+SUPABASE_ANON_KEY !== "sb_publishable_DYl24WF6mNud6QsS4nhhYA_53ohH191"
 ) {
 supabaseClient = window.supabase.createClient(
 SUPABASE_URL,
