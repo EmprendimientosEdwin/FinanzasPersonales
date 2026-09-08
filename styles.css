@@ -4432,3 +4432,151 @@ a:focus-visible {
         scroll-behavior: auto !important;
     }
 }
+
+
+/* =========================================================
+   EXPERIENCIA RESPONSIVE Y SISTEMA DE BOTONES
+========================================================= */
+
+/* Todos los controles conservan la misma identidad visual. */
+.primary-action,
+.login-submit,
+.finance-modal .finance-btn-primary {
+    min-height: 48px;
+    border: 1px solid rgba(255, 255, 255, .12);
+    border-radius: var(--radius-sm);
+    background: linear-gradient(135deg, var(--primary), var(--primary-light));
+    box-shadow: 0 12px 28px rgba(108, 99, 255, .25);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 750;
+    letter-spacing: .01em;
+}
+
+.secondary-action,
+.finance-modal .finance-btn-secondary {
+    min-height: 48px;
+    padding: 0 20px;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text-primary);
+    font-size: 12px;
+    font-weight: 700;
+    transition: var(--transition);
+}
+
+.secondary-action:hover,
+.finance-modal .finance-btn-secondary:hover {
+    border-color: rgba(147, 140, 255, .65);
+    background: var(--surface-hover);
+    transform: translateY(-1px);
+}
+
+.text-button,
+.finance-action,
+.finance-modal-close,
+.modal-close,
+.topbar-icon,
+.sidebar-close {
+    min-width: 44px;
+    min-height: 44px;
+}
+
+.text-button {
+    padding: 0 10px;
+    border-radius: var(--radius-xs);
+}
+
+body .finance-modal {
+    border: 1px solid var(--border-light);
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+body .finance-modal-close {
+    color: var(--text-secondary);
+}
+
+body .finance-modal-close:hover {
+    background: var(--surface-hover);
+    color: var(--text-primary);
+}
+
+.finance-form-group input:focus,
+.finance-form-group select:focus,
+.finance-form-group textarea:focus {
+    border-color: var(--primary-light);
+    box-shadow: 0 0 0 3px rgba(108, 99, 255, .18);
+}
+
+/* Tablet: evita que encabezados, filtros y tablas queden comprimidos. */
+@media (max-width: 1000px) {
+    .topbar {
+        gap: 14px;
+    }
+
+    .dashboard-welcome,
+    .section-header,
+    .card-header {
+        gap: 16px;
+    }
+
+    .users-table-card,
+    .transaction-table-wrapper {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .users-table,
+    .transaction-table {
+        min-width: 680px;
+    }
+}
+
+/* Móvil: áreas táctiles cómodas, modales legibles y acciones a ancho completo. */
+@media (max-width: 700px) {
+    button,
+    input,
+    select,
+    textarea {
+        font-size: 16px;
+    }
+
+    .topbar {
+        padding: 0 2px;
+    }
+
+    .dashboard-welcome .primary-action,
+    .section-header .primary-action,
+    .modal-actions .primary-action,
+    .modal-actions .secondary-action {
+        width: 100%;
+    }
+
+    .finance-modal-backdrop {
+        align-items: flex-end;
+        padding: 0;
+    }
+
+    .finance-modal {
+        width: 100%;
+        max-height: 92dvh;
+        padding: 20px 16px calc(20px + env(safe-area-inset-bottom));
+        border-radius: 22px 22px 0 0;
+    }
+
+    .finance-modal-footer {
+        flex-direction: column-reverse;
+    }
+
+    .finance-modal-footer button {
+        width: 100%;
+        min-height: 48px;
+    }
+
+    .finance-action {
+        width: 44px;
+        height: 44px;
+    }
+}
