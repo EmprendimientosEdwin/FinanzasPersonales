@@ -2939,6 +2939,7 @@ function renderTransactionRow(
                     )}"
                     data-edit-type="${type}"
                     title="Editar"
+                    aria-label="Editar movimiento"
                 >
                     <i class="
                         fa-solid
@@ -2957,6 +2958,7 @@ function renderTransactionRow(
                     )}"
                     data-delete-type="${type}"
                     title="Eliminar"
+                    aria-label="Eliminar movimiento"
                 >
                     <i class="
                         fa-solid
