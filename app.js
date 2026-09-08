@@ -672,6 +672,11 @@ function injectRuntimeStyles() {
         }
 
         @media(max-width:600px) {
+            .finance-modal-backdrop {
+                align-items:flex-end;
+                padding:0;
+            }
+
             .finance-form-grid {
                 grid-template-columns:1fr;
             }
@@ -681,8 +686,24 @@ function injectRuntimeStyles() {
             }
 
             .finance-modal {
-                padding:20px;
-                border-radius:20px;
+                width:100%;
+                max-height:92dvh;
+                padding:20px 16px calc(20px + env(safe-area-inset-bottom));
+                border-radius:22px 22px 0 0;
+            }
+
+            .finance-modal-header {
+                align-items:flex-start;
+            }
+
+            .finance-modal-footer {
+                flex-direction:column-reverse;
+                gap:10px;
+            }
+
+            .finance-modal-footer button {
+                width:100%;
+                min-height:48px;
             }
         }
     `;
