@@ -4796,7 +4796,7 @@ async function handleCreateUser(
             error
         } =
             await supabaseClient.functions.invoke(
-                "crear-usuario",
+                "smooth-processor",
                 {
                     body: {
                         nombre,
