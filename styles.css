@@ -4579,4 +4579,20 @@ body .finance-modal-close:hover {
         width: 44px;
         height: 44px;
     }
+
+    /* Ventanas del sistema (por ejemplo, Crear usuario). */
+    .modal-overlay {
+        align-items: flex-end;
+        padding: 0;
+    }
+
+    .modal-card {
+        width: 100%;
+        max-height: 92dvh;
+        border-radius: 22px 22px 0 0;
+    }
+}
+
+body.modal-open {
+    overflow: hidden;
 }
