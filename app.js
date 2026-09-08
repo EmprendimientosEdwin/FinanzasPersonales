@@ -3921,6 +3921,38 @@ function setupQuickActions() {
                     )
             );
         });
+
+    /*
+     * Los botones principales de las secciones no llevan atributos
+     * data-action en el HTML. Los enlazamos por la sección a la que
+     * pertenecen para que siempre abran el formulario correspondiente.
+     */
+    const sectionActions = {
+        ingresos: "nuevo-ingreso",
+        salidas: "nuevo-salida",
+        aportes: "nuevo-aporte",
+        metas: "nueva-meta"
+    };
+
+    Object.entries(sectionActions)
+        .forEach(([section, action]) => {
+            document
+                .querySelectorAll(
+                    `#${section} .primary-action`
+                )
+                .forEach(button => {
+                    if (button.dataset.actionBound) {
+                        return;
+                    }
+
+                    button.dataset.actionBound = "true";
+
+                    button.addEventListener(
+                        "click",
+                        () => openAction(action)
+                    );
+                });
+        });
 }
 
 
@@ -4614,7 +4646,7 @@ function closeCreateUserModal() {
 function setupCreateUserModal() {
     document
         .querySelectorAll(
-            "#createUserBtn, [data-create-user-open]"
+            "#createUserBtn, #openCreateUserModal, [data-create-user-open]"
         )
         .forEach(button => {
             button.addEventListener(
