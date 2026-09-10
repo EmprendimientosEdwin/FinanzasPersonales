@@ -65,7 +65,6 @@ let charts = {
 let financeData = {
     ingresos: [],
     salidas: [],
-    aportes: [],
     metas: []
 };
 
@@ -109,6 +108,11 @@ const passwordToggle =
 const logoutButton =
     document.getElementById(
         "logoutBtn"
+    );
+
+const changePasswordButton =
+    document.getElementById(
+        "changePasswordBtn"
     );
 
 const sidebar =
@@ -273,6 +277,12 @@ function formatDate(date) {
     if (!date) return "—";
 
     try {
+        const value = String(date);
+        const normalized =
+            /^\d{4}-\d{2}-\d{2}$/.test(value)
+                ? `${value}T00:00:00`
+                : date;
+
         return new Intl.DateTimeFormat(
             "es-PE",
             {
@@ -281,7 +291,7 @@ function formatDate(date) {
                 year: "numeric"
             }
         ).format(
-            new Date(date)
+            new Date(normalized)
         );
     } catch {
         return String(date);
@@ -292,6 +302,12 @@ function formatDate(date) {
 function formatDateInput(date) {
     if (!date) return "";
 
+    const value = String(date);
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        return value;
+    }
+
     const d =
         new Date(date);
 
@@ -299,9 +315,11 @@ function formatDateInput(date) {
         return "";
     }
 
-    return d
-        .toISOString()
-        .split("T")[0];
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
 }
 
 
@@ -527,11 +545,6 @@ function injectRuntimeStyles() {
 
         .finance-negative {
             color:#dc2626;
-            font-weight:800;
-        }
-
-        .finance-contribution {
-            color:#7c3aed;
             font-weight:800;
         }
 
@@ -1612,13 +1625,6 @@ function updatePageHeader(
                 "Salidas"
         },
 
-        aportes: {
-            eyebrow:
-                "Gestión financiera",
-            title:
-                "Aportes"
-        },
-
         metas: {
             eyebrow:
                 "Planificación",
@@ -1735,15 +1741,17 @@ function setupTheme() {
             "finanzas-theme"
         );
 
-    if (saved === "dark") {
-        document.documentElement.classList.add(
-            "dark"
-        );
+    const dark = saved !== "light";
 
-        document.body.classList.add(
-            "dark"
-        );
-    }
+    document.documentElement.classList.toggle(
+        "dark",
+        dark
+    );
+
+    document.body.classList.toggle(
+        "dark",
+        dark
+    );
 
     updateThemeIcon();
 
@@ -1788,6 +1796,195 @@ function updateThemeIcon() {
                 dark
                     ? "fa-solid fa-sun"
                     : "fa-solid fa-moon";
+        });
+
+    document
+        .querySelectorAll(
+            "[data-theme-label]"
+        )
+        .forEach(label => {
+            label.textContent = dark
+                ? "Modo claro"
+                : "Modo oscuro";
+        });
+
+    getElement(
+        "[data-theme-toggle]",
+        "#themeToggle"
+    )?.setAttribute("aria-pressed", String(dark));
+}
+
+
+function setupPasswordRecovery() {
+    const forgotPassword =
+        document.getElementById(
+            "forgotPassword"
+        );
+
+    forgotPassword?.addEventListener(
+        "click",
+        async event => {
+            event.preventDefault();
+
+            const email = loginEmail?.value?.trim();
+
+            if (!email) {
+                showToast(
+                    "Ingresa tu correo para enviarte el enlace de recuperación.",
+                    "warning"
+                );
+                loginEmail?.focus();
+                return;
+            }
+
+            try {
+                const { error } =
+                    await supabaseClient.auth.resetPasswordForEmail(
+                        email,
+                        {
+                            redirectTo:
+                                window.location.origin
+                        }
+                    );
+
+                if (error) {
+                    throw error;
+                }
+
+                showToast(
+                    "Te enviamos un enlace para restablecer tu contraseña.",
+                    "success"
+                );
+            } catch (error) {
+                console.error(
+                    "❌ Recuperar contraseña:",
+                    error
+                );
+
+                showToast(
+                    error?.message ||
+                        "No se pudo enviar el correo de recuperación.",
+                    "error"
+                );
+            }
+        }
+    );
+}
+
+
+function openChangePasswordModal() {
+    if (!currentUser?.email) {
+        showToast(
+            "No hay una sesión activa.",
+            "error"
+        );
+        return;
+    }
+
+    document
+        .getElementById("changePasswordModal")
+        ?.remove();
+
+    const modal = document.createElement("div");
+    modal.id = "changePasswordModal";
+    modal.className = "finance-modal-backdrop";
+    modal.innerHTML = `
+        <div class="finance-modal">
+            <div class="finance-modal-header">
+                <div>
+                    <small>Seguridad</small>
+                    <h2>Cambiar contraseña</h2>
+                </div>
+                <button type="button" class="finance-modal-close" data-close-modal>×</button>
+            </div>
+            <form id="changePasswordForm">
+                <div class="finance-form-grid">
+                    <div class="finance-form-group full">
+                        <label>Contraseña actual</label>
+                        <input type="password" name="currentPassword" autocomplete="current-password" required>
+                    </div>
+                    <div class="finance-form-group">
+                        <label>Nueva contraseña</label>
+                        <input type="password" name="newPassword" autocomplete="new-password" minlength="6" required>
+                    </div>
+                    <div class="finance-form-group">
+                        <label>Confirmar nueva contraseña</label>
+                        <input type="password" name="confirmPassword" autocomplete="new-password" minlength="6" required>
+                    </div>
+                </div>
+                <div class="finance-modal-footer">
+                    <button type="button" class="finance-btn-secondary" data-close-modal>Cancelar</button>
+                    <button type="submit" class="finance-btn-primary">Cambiar contraseña</button>
+                </div>
+            </form>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    const close = () => modal.remove();
+    modal.querySelectorAll("[data-close-modal]")
+        .forEach(button => button.addEventListener("click", close));
+
+    modal.addEventListener("click", event => {
+        if (event.target === modal) close();
+    });
+
+    modal.querySelector("#changePasswordForm")
+        ?.addEventListener("submit", async event => {
+            event.preventDefault();
+
+            const form = event.currentTarget;
+            const values = Object.fromEntries(
+                new FormData(form).entries()
+            );
+
+            if (values.newPassword !== values.confirmPassword) {
+                showToast(
+                    "La nueva contraseña y su confirmación no coinciden.",
+                    "warning"
+                );
+                return;
+            }
+
+            const submit = form.querySelector('button[type="submit"]');
+            submit.disabled = true;
+
+            try {
+                const { error: verificationError } =
+                    await supabaseClient.auth.signInWithPassword({
+                        email: currentUser.email,
+                        password: values.currentPassword
+                    });
+
+                if (verificationError) {
+                    throw new Error("La contraseña actual no es correcta.");
+                }
+
+                const { error } =
+                    await supabaseClient.auth.updateUser({
+                        password: values.newPassword
+                    });
+
+                if (error) {
+                    throw error;
+                }
+
+                close();
+                showToast(
+                    "Contraseña actualizada correctamente.",
+                    "success"
+                );
+            } catch (error) {
+                console.error("❌ Cambiar contraseña:", error);
+                showToast(
+                    error?.message ||
+                        "No se pudo cambiar la contraseña.",
+                    "error"
+                );
+            } finally {
+                submit.disabled = false;
+            }
         });
 }
 
@@ -1901,7 +2098,6 @@ async function loadDashboard() {
         const [
             ingresos,
             salidas,
-            aportes,
             metas
         ] =
             await Promise.all([
@@ -1913,17 +2109,12 @@ async function loadDashboard() {
                     "salidas"
                 ),
 
-                getTransactions(
-                    "aportes"
-                ),
-
                 getGoals()
             ]);
 
         financeData = {
             ingresos,
             salidas,
-            aportes,
             metas
         };
 
@@ -1986,20 +2177,13 @@ function getFinancialTotals() {
             financeData.salidas
         );
 
-    const aportes =
-        total(
-            financeData.aportes
-        );
-
     const balance =
         ingresos -
-        salidas -
-        aportes;
+        salidas;
 
     return {
         ingresos,
         salidas,
-        aportes,
         balance
     };
 }
@@ -2013,7 +2197,6 @@ function updateDashboardNumbers() {
     const {
         ingresos,
         salidas,
-        aportes,
         balance
     } =
         getFinancialTotals();
@@ -2036,14 +2219,6 @@ function updateDashboardNumbers() {
 
     setText(
         formatMoney(
-            aportes
-        ),
-        "[data-total-contributions]",
-        "#contributionValue"
-    );
-
-    setText(
-        formatMoney(
             balance
         ),
         "[data-balance]",
@@ -2054,8 +2229,7 @@ function updateDashboardNumbers() {
 
     const movement =
         ingresos +
-        salidas +
-        aportes;
+        salidas;
 
     if (movement > 0) {
         setText(
@@ -2134,13 +2308,6 @@ function renderRecentActivity() {
             })
         ),
 
-        ...financeData.aportes.map(
-            item => ({
-                ...item,
-                type:
-                    "contribution"
-            })
-        )
     ]
         .sort(
             (
@@ -2199,15 +2366,9 @@ function renderRecentActivity() {
                     item.type ===
                     "income";
 
-                const contribution =
-                    item.type ===
-                    "contribution";
-
                 const css =
                     income
                         ? "finance-positive"
-                        : contribution
-                        ? "finance-contribution"
                         : "finance-negative";
 
                 const sign =
@@ -2218,15 +2379,11 @@ function renderRecentActivity() {
                 const icon =
                     income
                         ? "fa-arrow-trend-up"
-                        : contribution
-                        ? "fa-piggy-bank"
                         : "fa-arrow-trend-down";
 
                 const label =
                     income
                         ? "Ingreso"
-                        : contribution
-                        ? "Aporte"
                         : "Salida";
 
                 return `
@@ -2293,8 +2450,8 @@ function getGoalTarget(
     goal
 ) {
     return Number(
-        goal.monto_objetivo ??
-            goal.objetivo ??
+        goal.objetivo ??
+            goal.monto_objetivo ??
             0
     );
 }
@@ -2304,8 +2461,8 @@ function getGoalCurrent(
     goal
 ) {
     return Number(
-        goal.monto_actual ??
-            goal.actual ??
+        goal.actual ??
+            goal.monto_actual ??
             goal.ahorrado ??
             0
     );
@@ -2440,10 +2597,24 @@ function renderGoalsPreview() {
 
                         </div>
 
+                        <button
+                            type="button"
+                            class="finance-btn-secondary"
+                            data-edit-id="${escapeHTML(
+                                goal.id
+                            )}"
+                            data-edit-type="metas"
+                        >
+                            <i class="fa-solid fa-pen"></i>
+                            Actualizar meta
+                        </button>
+
                     </div>
                 `;
             })
             .join("");
+
+    setupTransactionActionButtons();
 }
 
 
@@ -2586,10 +2757,24 @@ async function loadGoalsPage() {
 
                         </div>
 
+                        <button
+                            type="button"
+                            class="finance-btn-secondary"
+                            data-edit-id="${escapeHTML(
+                                goal.id
+                            )}"
+                            data-edit-type="metas"
+                        >
+                            <i class="fa-solid fa-pen"></i>
+                            Actualizar avance
+                        </button>
+
                     </div>
                 `;
             })
             .join("");
+
+    setupTransactionActionButtons();
 }
 
 
@@ -2613,8 +2798,7 @@ function renderFlowChart() {
 
     const {
         ingresos,
-        salidas,
-        aportes
+        salidas
     } =
         getFinancialTotals();
 
@@ -2632,16 +2816,14 @@ function renderFlowChart() {
                 data: {
                     labels: [
                         "Ingresos",
-                        "Salidas",
-                        "Aportes"
+                        "Salidas"
                     ],
 
                     datasets: [
                         {
                             data: [
                                 ingresos,
-                                salidas,
-                                aportes
+                                salidas
                             ]
                         }
                     ]
@@ -2807,14 +2989,6 @@ function renderTransactionLists() {
         ]
     );
 
-    renderTransactionList(
-        "aportes",
-        [
-            "[data-contribution-list]",
-            "#contributionList",
-            "#aportesList"
-        ]
-    );
 }
 
 
@@ -2883,9 +3057,6 @@ function renderTransactionRow(
         type ===
         "ingresos"
             ? "finance-positive"
-            : type ===
-              "aportes"
-            ? "finance-contribution"
             : "finance-negative";
 
     return `
@@ -2988,9 +3159,6 @@ function openTransactionModal(
         salidas:
             "Nueva salida",
 
-        aportes:
-            "Nuevo aporte",
-
         metas:
             "Nueva meta"
     };
@@ -3004,9 +3172,6 @@ function openTransactionModal(
                       : type ===
                         "salidas"
                       ? "salida"
-                      : type ===
-                        "aportes"
-                      ? "aporte"
                       : "meta"
               }`
             : labels[type] ||
@@ -3236,12 +3401,15 @@ function getGoalModalHTML(
         "";
 
     const target =
-        existing?.monto_objetivo ||
+        existing?.objetivo ??
+        existing?.monto_objetivo ??
         "";
 
     const current =
-        existing?.monto_actual ||
-        "";
+        existing?.actual ??
+        existing?.monto_actual ??
+        existing?.ahorrado ??
+        0;
 
     const description =
         existing?.descripcion ||
@@ -3633,12 +3801,12 @@ async function saveGoal(
             values.nombre
                 ?.trim(),
 
-        monto_objetivo:
+        objetivo:
             Number(
                 values.monto_objetivo
             ),
 
-        monto_actual:
+        actual:
             Number(
                 values.monto_actual ||
                     0
@@ -3659,8 +3827,8 @@ async function saveGoal(
     }
 
     if (
-        !payload.monto_objetivo ||
-        payload.monto_objetivo <= 0
+        !payload.objetivo ||
+        payload.objetivo <= 0
     ) {
         throw new Error(
             "El monto objetivo debe ser mayor a 0."
@@ -3806,8 +3974,6 @@ async function deleteTransaction(
         salidas:
             "salida",
 
-        aportes:
-            "aporte"
     };
 
     const confirmed =
@@ -3924,7 +4090,6 @@ function setupQuickActions() {
                 ![
                     "nuevo-ingreso",
                     "nuevo-salida",
-                    "nuevo-aporte",
                     "nueva-meta"
                 ].includes(
                     action
@@ -3953,7 +4118,6 @@ function setupQuickActions() {
     const sectionActions = {
         ingresos: "nuevo-ingreso",
         salidas: "nuevo-salida",
-        aportes: "nuevo-aporte",
         metas: "nueva-meta"
     };
 
@@ -3994,12 +4158,6 @@ function openAction(
 
         "nuevo-salida":
             "salidas",
-
-        aporte:
-            "aportes",
-
-        "nuevo-aporte":
-            "aportes",
 
         meta:
             "metas",
@@ -4574,6 +4732,16 @@ function applyUserFilters() {
             .trim()
             .toLowerCase();
 
+    const selectedRole =
+        roleValue === "all"
+            ? ""
+            : roleValue;
+
+    const selectedStatus =
+        statusValue === "all"
+            ? ""
+            : statusValue;
+
     return allUsers.filter(
         user => {
             const text =
@@ -4600,12 +4768,12 @@ function applyUserFilters() {
                     text.includes(
                         searchValue
                     )) &&
-                (!roleValue ||
+                (!selectedRole ||
                     userRole ===
-                        roleValue) &&
-                (!statusValue ||
+                        selectedRole) &&
+                (!selectedStatus ||
                     userStatus ===
-                        statusValue)
+                        selectedStatus)
             );
         }
     );
@@ -5079,6 +5247,11 @@ function setupMainEvents() {
         "click",
         logout
     );
+
+    changePasswordButton?.addEventListener(
+        "click",
+        openChangePasswordModal
+    );
 }
 
 
@@ -5119,6 +5292,8 @@ async function init() {
     setupMainEvents();
 
     setupPasswordToggle();
+
+    setupPasswordRecovery();
 
     setupNavigation();
 
