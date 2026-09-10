@@ -590,20 +590,6 @@
 
                 <button
                     class="nav-item"
-                    data-section="aportes"
-                    type="button"
-                >
-                    <span class="nav-icon">
-                        <i class="fa-solid fa-piggy-bank"></i>
-                    </span>
-
-                    <span>
-                        Aportes
-                    </span>
-                </button>
-
-                <button
-                    class="nav-item"
                     data-section="metas"
                     type="button"
                 >
@@ -676,8 +662,8 @@
                 type="button"
             >
                 <span>
-                    <i class="fa-solid fa-moon"></i>
-                    Modo oscuro
+                    <i class="fa-solid fa-moon" data-theme-icon></i>
+                    <span data-theme-label>Modo oscuro</span>
                 </span>
 
                 <div class="toggle-switch">
@@ -685,6 +671,17 @@
                 </div>
             </button>
 
+
+            <button
+                id="changePasswordBtn"
+                class="sidebar-action"
+                type="button"
+            >
+                <span>
+                    <i class="fa-solid fa-key"></i>
+                    Cambiar contraseña
+                </span>
+            </button>
 
             <button
                 id="logoutBtn"
@@ -959,48 +956,6 @@
                 </div>
 
 
-                <!-- Aportes -->
-                <div class="finance-card contribution-card">
-
-                    <div class="finance-card-top">
-
-                        <div class="finance-card-icon">
-                            <i class="fa-solid fa-piggy-bank"></i>
-                        </div>
-
-                        <span class="finance-card-label">
-                            APORTES
-                        </span>
-
-                    </div>
-
-                    <div class="finance-card-value">
-
-                        <span>
-                            S/
-                        </span>
-
-                        <strong id="contributionValue">
-                            0.00
-                        </strong>
-
-                    </div>
-
-                    <div class="finance-card-footer">
-
-                        <span class="positive">
-                            <i class="fa-solid fa-bullseye"></i>
-                            Ahorro
-                        </span>
-
-                        <span>
-                            Este periodo
-                        </span>
-
-                    </div>
-
-                </div>
-
             </div>
 
 
@@ -1176,7 +1131,11 @@
 
                 </div>
 
-                <button class="primary-action">
+                <button
+                    class="primary-action"
+                    type="button"
+                    data-action="nuevo-ingreso"
+                >
                     <i class="fa-solid fa-plus"></i>
                     Nuevo ingreso
                 </button>
@@ -1225,7 +1184,11 @@
 
                 </div>
 
-                <button class="primary-action">
+                <button
+                    class="primary-action"
+                    type="button"
+                    data-action="nuevo-salida"
+                >
                     <i class="fa-solid fa-plus"></i>
                     Nueva salida
                 </button>
@@ -1240,55 +1203,6 @@
                 >
                     <div class="finanzas-empty">
                         No hay salidas registradas.
-                    </div>
-                </div>
-            </div>
-
-        </section>
-
-
-        <!-- =================================================
-             APORTES
-        ================================================== -->
-
-        <section
-            id="aportes"
-            class="page-section"
-        >
-
-            <div class="section-header">
-
-                <div>
-
-                    <span class="page-eyebrow">
-                        AHORRO
-                    </span>
-
-                    <h2>
-                        Aportes
-                    </h2>
-
-                    <p>
-                        Controla el dinero destinado a tus objetivos.
-                    </p>
-
-                </div>
-
-                <button class="primary-action">
-                    <i class="fa-solid fa-plus"></i>
-                    Nuevo aporte
-                </button>
-
-            </div>
-
-            <div class="dashboard-card">
-                <div
-                    id="aportesList"
-                    class="transaction-list"
-                    aria-live="polite"
-                >
-                    <div class="finanzas-empty">
-                        No hay aportes registrados.
                     </div>
                 </div>
             </div>
@@ -1323,7 +1237,11 @@
 
                 </div>
 
-                <button class="primary-action">
+                <button
+                    class="primary-action"
+                    type="button"
+                    data-action="nueva-meta"
+                >
                     <i class="fa-solid fa-plus"></i>
                     Nueva meta
                 </button>
@@ -1414,21 +1332,6 @@
                     </strong>
 
                     <i class="fa-solid fa-arrow-trend-down"></i>
-
-                </div>
-
-
-                <div class="report-card">
-
-                    <span>
-                        Aportes
-                    </span>
-
-                    <strong id="reportContribution">
-                        S/ 0.00
-                    </strong>
-
-                    <i class="fa-solid fa-piggy-bank"></i>
 
                 </div>
 
