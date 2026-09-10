@@ -56,6 +56,25 @@
 }
 
 
+/* El tema predeterminado es oscuro; sin .dark se usa la variante clara. */
+:root:not(.dark) {
+    --bg-main: #f5f7fb;
+    --bg-secondary: #ffffff;
+    --bg-tertiary: #e9eef7;
+    --surface: rgba(15, 23, 42, .045);
+    --surface-hover: rgba(15, 23, 42, .075);
+    --surface-strong: rgba(15, 23, 42, .09);
+    --border: rgba(15, 23, 42, .12);
+    --border-light: rgba(15, 23, 42, .18);
+    --text-primary: #182235;
+    --text-secondary: #4f5d73;
+    --text-muted: #69758a;
+    --shadow-sm: 0 8px 25px rgba(15, 23, 42, .10);
+    --shadow-md: 0 18px 50px rgba(15, 23, 42, .13);
+    --shadow-lg: 0 30px 90px rgba(15, 23, 42, .18);
+}
+
+
 /* =========================================================
    RESET
 ========================================================= */
@@ -2110,6 +2129,15 @@ textarea::placeholder {
 
     transition:
         var(--transition);
+}
+
+html.dark .toggle-switch {
+    background: var(--primary);
+}
+
+html.dark .toggle-switch span {
+    transform: translateX(13px);
+    background: #fff;
 }
 
 
